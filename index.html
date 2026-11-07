@@ -149,6 +149,45 @@
     .posts .mine .who { color: var(--accent); }
     .more { margin-top: 8px; }
 
+    /* Fragebogen */
+    button.secondary { background: var(--accent-soft); color: var(--accent); }
+    .bar { height: 6px; border-radius: 999px; background: var(--accent-soft); overflow: hidden; margin: 10px 0 12px; }
+    .bar > span { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 999px; transition: width .3s; }
+    .quiz-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+    .quiz-top .step { font-size: .85rem; color: var(--muted); font-weight: 600; }
+    #quiz-title { font-size: 1.35rem; margin: 6px 0 4px; display: flex; align-items: center; gap: 10px; }
+    #quiz-title.dot::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--dot); }
+    #quiz-intro { color: var(--muted); margin: 0 0 16px; }
+    .q { margin-bottom: 20px; }
+    .q > label { font-size: .95rem; color: var(--fg); font-weight: 600; margin-bottom: 8px; }
+    .q .opt { font-weight: 400; color: var(--muted); }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip {
+      width: auto; padding: 9px 14px; border-radius: 999px; font-size: .95rem; font-weight: 500;
+      background: var(--bg); color: var(--fg); border: 1px solid var(--line);
+    }
+    .chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 650; }
+    .chips.scale .chip { flex: 1; padding: 10px 0; }
+    .scale-ends { display: flex; justify-content: space-between; font-size: .8rem; color: var(--muted); margin-top: 4px; }
+    .input-unit { display: flex; align-items: center; gap: 8px; }
+    .input-unit input { flex: 1; }
+    .input-unit .unit { color: var(--muted); font-size: .95rem; min-width: 2.5em; }
+    .q textarea {
+      width: 100%; padding: 12px; font-size: 1rem; border-radius: 10px; border: 1px solid var(--line);
+      background: var(--bg); color: inherit; font-family: inherit; resize: vertical; line-height: 1.4;
+    }
+    .q textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .range-row { display: flex; align-items: center; gap: 14px; }
+    .range-row input[type=range] {
+      flex: 1; padding: 0; border: 0; background: transparent; -webkit-appearance: auto; appearance: auto;
+      accent-color: var(--accent); height: 32px;
+    }
+    .range-val { font-weight: 700; font-size: 1.1rem; min-width: 4.2em; text-align: right; font-variant-numeric: tabular-nums; }
+    .quiz-nav { display: flex; gap: 10px; margin-top: 8px; }
+    .quiz-nav button { flex: 1; }
+    .quiz-nav #quiz-back { flex: 0 0 auto; width: auto; padding: 13px 18px; }
+    .privacy { font-size: .8rem; color: var(--muted); margin-top: 14px; text-align: center; }
+
     .footer-note { text-align: center; font-size: .8rem; color: var(--muted); margin-top: 8px; }
   </style>
 </head>
@@ -276,6 +315,13 @@
       </div>
 
 
+      <div class="card" id="quiz-card">
+        <h2>Dein Trainingsstatus</h2>
+        <p class="hint" id="quiz-status" style="font-size:.9rem;margin:0">Lade …</p>
+        <div class="bar"><span id="quiz-bar"></span></div>
+        <button type="button" id="quiz-open">Fragebogen starten</button>
+      </div>
+
       <div class="card">
         <h2>Pinnwand</h2>
         <form class="composer" id="composer">
@@ -303,6 +349,26 @@
           <li>Was die anderen letzte Woche trainiert haben</li>
           <li>Grafiken zum Fortschritt</li>
         </ul>
+      </div>
+    </section>
+
+    <!-- Fragebogen -->
+    <section id="view-quiz" hidden>
+      <div class="card">
+        <div class="quiz-top">
+          <span class="step" id="quiz-step"></span>
+          <button type="button" class="ghost" id="quiz-close">Später weitermachen</button>
+        </div>
+        <div class="bar"><span id="quiz-progress"></span></div>
+        <h2 id="quiz-title"></h2>
+        <p id="quiz-intro"></p>
+        <div id="quiz-fields"></div>
+        <div class="msg error" id="quiz-msg" role="alert"></div>
+        <div class="quiz-nav">
+          <button type="button" class="secondary" id="quiz-back">Zurück</button>
+          <button type="button" id="quiz-next">Weiter</button>
+        </div>
+        <p class="privacy">Deine Antworten sind privat. Die anderen sehen sie nicht. Julius (Admin) und Claude nutzen sie nur für deinen Trainingsplan.</p>
       </div>
     </section>
 
@@ -340,6 +406,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="fragebogen.js"></script>
   <script>
     // Verbindung zu Supabase. Dieser Schlüssel ist öffentlich und darf im Code stehen;
     // geschützt werden die Daten durch die Zugriffsregeln in der Datenbank.
@@ -386,7 +453,8 @@
     function show(view) {
       $("view-auth").hidden = view !== "auth";
       $("view-home").hidden = view !== "home";
-      $("logout").hidden = view !== "home";
+      $("view-quiz").hidden = view !== "quiz";
+      $("logout").hidden = view === "auth";
     }
 
     function setTab(which) {
@@ -494,6 +562,7 @@
 
       renderPeople(profiles, user.id);
       show("home");
+      Fragebogen.renderCard();
       loadPosts();
       subscribePosts();
     }
@@ -622,11 +691,14 @@
         await loadHome(session.user);
       } else {
         me = null;
+        Fragebogen.reset();
         if (channel) { db.removeChannel(channel); channel = null; }
         renderCountdown(DEFAULT_RACE_DATE);
         show("auth");
       }
     }
+
+    Fragebogen.bind();
 
     // ---------- Start ----------
     renderCountdown(DEFAULT_RACE_DATE);
