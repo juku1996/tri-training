@@ -464,7 +464,7 @@
           <p class="hello" id="hello"></p>
           <div class="hello-meta">
             <span class="pill" id="my-distance"></span>
-            <span class="mini-cd" id="cd-mini"></span>
+            <span class="mini-cd" id="cd-mini" hidden></span>
           </div>
         </div>
         <div id="claude-msgs"></div>
@@ -798,15 +798,22 @@
       $("view-auth").hidden = view !== "auth";
       $("view-home").hidden = view !== "home";
       $("view-quiz").hidden = view !== "quiz";
-      document.querySelector(".countdown").hidden = view !== "auth";
+      currentView = view;
+      updateHero();
       $("tabbar").hidden = view !== "home";
       document.body.classList.toggle("has-tabs", view === "home");
     }
 
     // ---------- Bereiche (Heute / Plan / Familie / Ich) ----------
     let currentTab = "heute";
+    let currentView = "auth";
+    // Countdown mit Skyline: auf der Anmeldeseite und im Bereich Heute
+    function updateHero() {
+      document.querySelector(".countdown").hidden = !(currentView === "auth" || (currentView === "home" && currentTab === "heute"));
+    }
     function showTab(name, scrollId) {
       currentTab = name;
+      updateHero();
       ["heute", "plan", "familie", "ich"].forEach((t) => { $("tab-" + t).hidden = t !== name; });
       document.querySelectorAll("#tabbar button").forEach((b) => {
         if (b.dataset.tab === name) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
