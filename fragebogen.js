@@ -26,7 +26,7 @@ const Fragebogen = (() => {
       fields: [
         { id: "goal", label: "Hauptziel", type: "choice",
           options: ["Ankommen", "Mit Spaß und gutem Gefühl ankommen", "Eine bestimmte Zielzeit", "Möglichst weit vorne landen"] },
-        { id: "target_time", label: "Welche Zielzeit?", type: "time", placeholder: "h:mm, z. B. 2:45",
+        { id: "target_time", label: "Welche Zielzeit?", type: "time", placeholder: "h:mm, z. B. 2:45", unknown: true,
           when: (a) => a.goal === "Eine bestimmte Zielzeit" },
         { id: "tri_experience", label: "Triathlon-Erfahrung", type: "choice",
           options: ["Noch nie gemacht", "Schon einmal", "Mehrfach"] },
@@ -58,9 +58,9 @@ const Fragebogen = (() => {
         { id: "swim_style", label: "Wie schwimmst du?", type: "choice",
           options: ["Kraul, sicher", "Kraul, aber nicht lange am Stück", "Hauptsächlich Brust"] },
         { id: "swim_max_m", label: "Längste Strecke am Stück ohne Pause", type: "number", unit: "m", min: 0, max: 10000,
-          placeholder: "z. B. 400" },
+          placeholder: "z. B. 400", unknown: true },
         { id: "swim_pace", label: "Zeit pro 100 m (lockeres Tempo)", type: "time", placeholder: "mm:ss, z. B. 2:10",
-          optional: true, hint: "Leer lassen, wenn du es nicht weißt." },
+          unknown: true },
         { id: "swim_per_week", label: "Wie oft schwimmst du aktuell pro Woche?", type: "choice",
           options: ["Gar nicht", "Seltener als 1×", "1×", "2×", "3× oder mehr"] },
         { id: "pool_access", label: "Hast du Zugang zu einem Schwimmbad?", type: "choice", options: ["Ja", "Nein"] },
@@ -81,12 +81,12 @@ const Fragebogen = (() => {
         { id: "bike_type", label: "Welches Rad hast du?", type: "multi",
           options: ["Rennrad", "Triathlon-/Zeitfahrrad", "Gravel/Cross", "Mountainbike", "Trekking/City", "Keins"] },
         { id: "bike_km_year", label: "Wie viele km bist du im letzten Jahr gefahren (Sport, nicht Alltag)?", type: "number",
-          unit: "km", min: 0, max: 50000, optional: true, hint: "Grobe Schätzung reicht." },
+          unit: "km", min: 0, max: 50000, unknown: true, hint: "Grobe Schätzung reicht." },
         { id: "bike_per_week", label: "Wie oft fährst du aktuell pro Woche (Sport)?", type: "choice",
           options: ["Gar nicht", "Seltener als 1×", "1×", "2×", "3× oder mehr"] },
-        { id: "bike_longest_km", label: "Längste Fahrt in den letzten Monaten", type: "number", unit: "km", min: 0, max: 400 },
+        { id: "bike_longest_km", label: "Längste Fahrt in den letzten Monaten", type: "number", unit: "km", min: 0, max: 400, unknown: true },
         { id: "bike_speed", label: "Durchschnittstempo bei längeren Fahrten (flach)", type: "number", unit: "km/h",
-          min: 5, max: 50, optional: true },
+          min: 5, max: 50, unknown: true },
         { id: "bike_commute", label: "Fährst du im Alltag Rad (z. B. zur Arbeit)?", type: "choice",
           options: ["Nein", "Ab und zu", "Regelmäßig"] },
         { id: "bike_indoor", label: "Was hast du für drinnen?", type: "multi", optional: true,
@@ -100,14 +100,13 @@ const Fragebogen = (() => {
       fields: [
         { id: "run_per_week", label: "Wie oft läufst du aktuell pro Woche?", type: "choice",
           options: ["Gar nicht", "Seltener als 1×", "1×", "2×", "3× oder mehr"] },
-        { id: "run_km_week", label: "Wie viele km pro Woche ungefähr?", type: "number", unit: "km", min: 0, max: 200,
+        { id: "run_km_week", label: "Wie viele km pro Woche ungefähr?", type: "number", unit: "km", min: 0, max: 200, unknown: true,
           when: (a) => a.run_per_week && a.run_per_week !== "Gar nicht" },
-        { id: "run_longest_km", label: "Längster Lauf in den letzten Monaten", type: "number", unit: "km", min: 0, max: 100 },
-        { id: "run_5k", label: "Zeit für 5 km (aktuell)", type: "time", placeholder: "mm:ss, z. B. 29:30", optional: true,
-          hint: "Leer lassen, wenn du es nicht weißt." },
-        { id: "run_10k", label: "Zeit für 10 km (aktuell)", type: "time", placeholder: "mm:ss oder h:mm:ss", optional: true },
+        { id: "run_longest_km", label: "Längster Lauf in den letzten Monaten", type: "number", unit: "km", min: 0, max: 100, unknown: true },
+        { id: "run_5k", label: "Zeit für 5 km (aktuell)", type: "time", placeholder: "mm:ss, z. B. 29:30", unknown: true },
+        { id: "run_10k", label: "Zeit für 10 km (aktuell)", type: "time", placeholder: "mm:ss oder h:mm:ss", unknown: true },
         { id: "run_easy_pace", label: "Tempo bei lockeren Läufen", type: "time", unit: "min/km", placeholder: "z. B. 6:45",
-          optional: true },
+          unknown: true },
         { id: "run_complaints", label: "Hast du beim Laufen typischerweise Beschwerden?", type: "text", optional: true,
           placeholder: "z. B. Schienbein, Knie, Achillessehne" },
         { id: "run_shoes", label: "Wie alt sind deine Laufschuhe?", type: "choice",
@@ -150,9 +149,9 @@ const Fragebogen = (() => {
           options: ["Keine", "Ja, ohne Puls", "Ja, Puls am Handgelenk", "Ja, mit Brustgurt"] },
         { id: "watch_model", label: "Welche Uhr?", type: "text", optional: true, placeholder: "z. B. Apple Watch, Garmin Forerunner",
           when: (a) => a.watch && a.watch !== "Keine" },
-        { id: "rest_hr", label: "Ruhepuls (morgens im Liegen)", type: "number", unit: "bpm", min: 30, max: 110, optional: true,
+        { id: "rest_hr", label: "Ruhepuls (morgens im Liegen)", type: "number", unit: "bpm", min: 30, max: 110, unknown: true,
           hint: "Steht oft in der Uhr-App." },
-        { id: "max_hr", label: "Maximalpuls, falls bekannt", type: "number", unit: "bpm", min: 120, max: 230, optional: true },
+        { id: "max_hr", label: "Maximalpuls", type: "number", unit: "bpm", min: 120, max: 230, unknown: true },
         { id: "apps", label: "Nutzt du eine Trainings-App?", type: "multi", optional: true,
           options: ["Apple Fitness/Health", "Garmin Connect", "Strava", "Andere", "Keine"] }
       ]
@@ -172,6 +171,8 @@ const Fragebogen = (() => {
       ]
     }
   ];
+
+  const UNKNOWN = "weiß nicht";
 
   let answers = {};
   let completedAt = null;
@@ -206,13 +207,14 @@ const Fragebogen = (() => {
   }
 
   function progress() {
+    if (completedAt) return 100;
     let total = 0, done = 0;
     SECTIONS.forEach((s) => s.fields.forEach((f) => {
-      if (!visible(f)) return;
+      if (!visible(f) || f.optional) return;
       total++;
       if (!isEmpty(answers[f.id])) done++;
     }));
-    return total ? Math.round((done / total) * 100) : 0;
+    return total ? Math.min(100, Math.round((done / total) * 100)) : 0;
   }
 
   // ---------- Karte auf der eigenen Seite ----------
@@ -372,7 +374,9 @@ const Fragebogen = (() => {
       input.placeholder = f.placeholder || "";
       if (f.type === "number") input.inputMode = (f.step && f.step < 1) ? "decimal" : "numeric";
       if (f.type === "time") input.inputMode = "text";
-      input.value = val != null ? (f.type === "number" ? fmtNum(val) : val) : "";
+      const isUnknown = val === UNKNOWN;
+      input.value = val != null && !isUnknown ? (f.type === "number" ? fmtNum(val) : val) : "";
+      input.disabled = isUnknown;
       input.addEventListener("input", () => {
         const raw = input.value.trim();
         if (f.type === "number") {
@@ -386,6 +390,22 @@ const Fragebogen = (() => {
       row.append(input);
       if (f.unit) row.append(el("span", "unit", f.unit));
       wrap.append(row);
+      if (f.unknown) {
+        const chips = el("div", "chips unknown");
+        const b = el("button", "chip", "Weiß ich noch nicht");
+        b.type = "button";
+        b.setAttribute("aria-pressed", isUnknown);
+        b.addEventListener("click", () => {
+          const on = answers[f.id] !== UNKNOWN;
+          answers[f.id] = on ? UNKNOWN : "";
+          b.setAttribute("aria-pressed", on);
+          input.disabled = on;
+          input.value = "";
+          if (!on) input.focus();
+        });
+        chips.append(b);
+        wrap.append(chips);
+      }
     }
 
     if (f.hint) wrap.append(el("div", "hint", f.hint));
@@ -403,8 +423,9 @@ const Fragebogen = (() => {
       const v = answers[f.id];
       if (isEmpty(v)) {
         if (f.optional) continue;
-        return "Bitte noch beantworten: „" + f.label + "“";
+        return "Bitte noch beantworten: „" + f.label + "“" + (f.unknown ? " (oder „Weiß ich noch nicht“ wählen)" : "");
       }
+      if (v === UNKNOWN) continue;
       if (f.type === "number" && (typeof v !== "number" || (f.min != null && v < f.min) || (f.max != null && v > f.max))) {
         return "„" + f.label + "“: Bitte eine Zahl zwischen " + f.min + " und " + f.max + " eingeben.";
       }

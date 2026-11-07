@@ -188,6 +188,24 @@
     .quiz-nav #quiz-back { flex: 0 0 auto; width: auto; padding: 13px 18px; }
     .privacy { font-size: .8rem; color: var(--muted); margin-top: 14px; text-align: center; }
 
+    /* Einschätzung von Claude */
+    .coach .lead { margin: 0 0 14px; }
+    .coach h3 { font-size: .8rem; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 6px; }
+    .coach ul { margin: 0; padding-left: 18px; }
+    .coach li { margin: 4px 0; }
+    .coach .prog { display: flex; gap: 10px; margin-top: 14px; }
+    .coach .prog div { flex: 1; background: var(--bg); border-radius: 12px; padding: 10px 12px; }
+    .coach .prog span { display: block; font-size: .78rem; color: var(--muted); }
+    .coach .prog b { font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+    .coach .questions { background: var(--accent-soft); border-radius: 12px; padding: 10px 12px 10px 30px; margin-top: 14px; }
+    .coach .questions li { color: var(--fg); }
+    .coach .meta { font-size: .8rem; color: var(--muted); margin-top: 12px; }
+    .coach details summary { cursor: pointer; color: var(--accent); font-weight: 600; margin-top: 12px; list-style: none; }
+    .coach details summary::-webkit-details-marker { display: none; }
+    .coach details[open] summary { display: none; }
+    .chips.unknown { margin-top: 8px; }
+    .input-unit input:disabled { opacity: .45; }
+
     .footer-note { text-align: center; font-size: .8rem; color: var(--muted); margin-top: 8px; }
   </style>
 </head>
@@ -314,6 +332,20 @@
         <span class="pill" id="my-distance"></span>
       </div>
 
+
+      <div class="card coach" id="coach-card" hidden>
+        <h2>Deine Einschätzung</h2>
+        <p class="lead" id="coach-summary"></p>
+        <div class="prog">
+          <div><span>Heute ungefähr</span><b id="coach-now"></b></div>
+          <div><span>Ziel bis Juli</span><b id="coach-target"></b></div>
+        </div>
+        <details id="coach-details">
+          <summary>Alles anzeigen</summary>
+          <div id="coach-body"></div>
+        </details>
+        <div class="meta" id="coach-meta"></div>
+      </div>
 
       <div class="card" id="quiz-card">
         <h2>Dein Trainingsstatus</h2>
@@ -563,8 +595,37 @@
       renderPeople(profiles, user.id);
       show("home");
       Fragebogen.renderCard();
+      loadCoach();
       loadPosts();
       subscribePosts();
+    }
+
+    // ---------- Einschätzung ----------
+    async function loadCoach() {
+      const { data, error } = await db.from("coach_notes").select("note, updated_at").eq("user_id", me.id).maybeSingle();
+      const card = $("coach-card");
+      if (error || !data) { card.hidden = true; return; }
+      const n = data.note || {};
+      $("coach-summary").textContent = n.summary || "";
+      $("coach-now").textContent = (n.prognosis && n.prognosis.now) || "–";
+      $("coach-target").textContent = (n.prognosis && n.prognosis.target) || "–";
+      const body = $("coach-body");
+      body.innerHTML = "";
+      const section = (title, items, cls) => {
+        if (!Array.isArray(items) || !items.length) return;
+        body.append(Object.assign(document.createElement("h3"), { textContent: title }));
+        const ul = document.createElement("ul");
+        if (cls) ul.className = cls;
+        items.forEach((t) => ul.append(Object.assign(document.createElement("li"), { textContent: t })));
+        body.append(ul);
+      };
+      section("Deine Stärken", n.strengths);
+      section("Darauf kommt es an", n.focus);
+      section("Erste Schritte", n.first_steps);
+      section("Fragen an dich", n.open_questions, "questions");
+      const d = new Date(data.updated_at).toLocaleDateString("de-DE", { day: "numeric", month: "long" });
+      $("coach-meta").textContent = "Von Claude auf Basis deines Fragebogens, Stand " + d + ".";
+      card.hidden = false;
     }
 
     // ---------- Pinnwand ----------
