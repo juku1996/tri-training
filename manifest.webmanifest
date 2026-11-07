@@ -1,0 +1,11 @@
+{
+  "name": "Tri-Training",
+  "short_name": "Tri-Training",
+  "description": "Trainingsbegleiter für die Olympische Distanz",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b6e99",
+  "theme_color": "#0b6e99",
+  "lang": "de"
+}

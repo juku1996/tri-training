@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Tri-Training</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Tri-Training">
+  <meta name="theme-color" content="#0b6e99">
+  <style>
+    :root { --bg:#f5f7fa; --fg:#14202b; --accent:#0b6e99; --card:#fff; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#0f1419; --fg:#e6edf3; --accent:#4cb3e0; --card:#1a222b; }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+      font-family: -apple-system, system-ui, sans-serif;
+      background: var(--bg); color: var(--fg);
+    }
+    main { max-width: 480px; margin: 0 auto; padding: 24px 0; }
+    h1 { font-size: 1.6rem; margin: 0 0 4px; }
+    p.sub { margin: 0 0 24px; opacity: .7; }
+    .card { background: var(--card); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+    label { display: block; font-size: .85rem; opacity: .7; margin-bottom: 6px; }
+    input {
+      width: 100%; padding: 12px; font-size: 1rem; border-radius: 10px;
+      border: 1px solid rgba(128,128,128,.35); background: transparent; color: inherit;
+    }
+    button {
+      margin-top: 12px; width: 100%; padding: 12px; font-size: 1rem; border: 0;
+      border-radius: 10px; background: var(--accent); color: #fff; font-weight: 600;
+    }
+    #status { margin-top: 10px; font-size: .9rem; opacity: .8; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Tri-Training</h1>
+    <p class="sub">Test: Läuft die App, und bleiben Daten gespeichert?</p>
+
+    <div class="card">
+      <label for="name">Dein Name</label>
+      <input id="name" type="text" placeholder="z. B. Anna" autocomplete="off">
+      <button id="save">Speichern</button>
+      <div id="status"></div>
+    </div>
+
+    <div class="card">
+      <div id="greeting">Hallo!</div>
+      <div id="visits" style="opacity:.7;font-size:.9rem;margin-top:6px"></div>
+    </div>
+  </main>
+
+  <script>
+    // Alle Daten liegen lokal im Browser dieses Geräts.
+    const KEY = "tri-training-v1";
+
+    function load() {
+      try { return JSON.parse(localStorage.getItem(KEY)) || {}; }
+      catch (e) { return {}; }
+    }
+    function save(data) {
+      try { localStorage.setItem(KEY, JSON.stringify(data)); return true; }
+      catch (e) { return false; }
+    }
+
+    const data = load();
+    data.visits = (data.visits || 0) + 1;
+    save(data);
+
+    const nameInput = document.getElementById("name");
+    const greeting = document.getElementById("greeting");
+    const visits = document.getElementById("visits");
+    const status = document.getElementById("status");
+
+    function render() {
+      greeting.textContent = data.name ? "Hallo " + data.name + "!" : "Hallo! Wie heißt du?";
+      visits.textContent = "App bisher " + data.visits + "x geöffnet";
+      nameInput.value = data.name || "";
+    }
+
+    document.getElementById("save").addEventListener("click", () => {
+      data.name = nameInput.value.trim();
+      status.textContent = save(data) ? "Gespeichert ✓" : "Speichern nicht möglich";
+      render();
+    });
+
+    render();
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("sw.js").catch(() => {});
+    }
+  </script>
+</body>
+</html>
