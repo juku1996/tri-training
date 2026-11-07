@@ -199,15 +199,43 @@ const Plan = (() => {
     return { n: req.filter((s) => done.has(s.id)).length, total: req.length };
   }
 
-  function renderToday() {
+  // Eingetragene Wochen ohne Plan (diese oder nächste Woche)
+  async function pendingWeeks() {
+    if (!me) return [];
+    const { data } = await db.from("week_availability").select("week_start")
+      .eq("user_id", me.id).gte("week_start", iso(thisMonday())).order("week_start").limit(2);
+    const have = new Set(plans.map((p) => p.week_start));
+    return (data || []).map((r) => r.week_start).filter((w) => !have.has(w));
+  }
+
+  function editWeekButton(ws, label) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "secondary"; b.textContent = label || "Woche überarbeiten";
+    b.addEventListener("click", () => { Woche.focusWeek(ws); Woche.render(); showTab("plan", "week-card"); });
+    return b;
+  }
+
+  async function renderToday() {
     const body = $("today-body");
     if (!body) return;
+    const pending = await pendingWeeks();
     body.innerHTML = "";
+    const pend = $("today-pending");
+    if (pend) pend.remove();
     const title = $("today-title");
     const actions = document.createElement("div"); actions.className = "today-actions";
 
     if (!plans.length) {
       title.textContent = "Dein Plan";
+      if (pending.length) {
+        const st = document.createElement("div"); st.className = "today-when"; st.style.color = "var(--ok)";
+        st.textContent = "Woche eingetragen ✓";
+        const p = document.createElement("p"); p.style.margin = "0";
+        p.textContent = "Claude erstellt deinen Plan für " + rangeText(pending[0]) + ", du bekommst eine Benachrichtigung, sobald er da ist.";
+        actions.append(editWeekButton(pending[0]));
+        body.append(st, p, actions);
+        return;
+      }
       const p = document.createElement("p"); p.className = "hint"; p.style.margin = "0";
       p.textContent = "Noch kein Plan. Trag deine Woche ein, dann erstellt Claude ihn für dich.";
       const b = document.createElement("button"); b.type = "button"; b.textContent = "Woche eintragen";
@@ -220,9 +248,11 @@ const Plan = (() => {
     const nx = nextSession();
     const prog = weekProgress();
     if (!nx) {
-      title.textContent = "Geschafft";
+      const allDone = prog && prog.total && prog.n === prog.total;
+      title.textContent = allDone ? "Geschafft" : "Dein Plan";
       const p = document.createElement("p"); p.style.margin = "0";
-      p.textContent = "Alle Einheiten erledigt. Stark! 🎉";
+      p.textContent = allDone ? "Alle Einheiten der Woche erledigt. Stark! 🎉"
+        : "Für diese Woche steht nichts mehr an. Hast du etwas gemacht, aber noch nicht abgehakt? Im Plan kannst du es nachtragen.";
       body.append(p);
     } else {
       const sp = SPORT[nx.s.sport] || SPORT.other;
@@ -264,6 +294,16 @@ const Plan = (() => {
       const p = document.createElement("p"); p.className = "hint"; p.style.margin = "12px 0 0";
       p.textContent = "Diese Woche: " + prog.n + " von " + prog.total + " Einheiten erledigt";
       body.append(p);
+    }
+    // Plan läuft, aber die nächste Woche ist schon eingetragen und wartet noch auf den Plan
+    if (pending.length) {
+      const box = document.createElement("div"); box.id = "today-pending"; box.className = "pending-row";
+      const t = document.createElement("div");
+      const b1 = document.createElement("b"); b1.textContent = "Woche " + rangeText(pending[0]) + " eingetragen ✓";
+      const s1 = document.createElement("span"); s1.className = "hint"; s1.textContent = "Plan kommt bald.";
+      t.append(b1, s1);
+      box.append(t, editWeekButton(pending[0], "Überarbeiten"));
+      body.append(box);
     }
   }
 

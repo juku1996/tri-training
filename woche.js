@@ -138,6 +138,8 @@ const Woche = (() => {
     btn.textContent = "Änderungen speichern";
     msgEl.textContent = "Gespeichert ✓ Daraus erstellt Claude deinen Plan.";
     msgEl.className = "msg ok";
+    if (typeof Plan !== "undefined") Plan.renderToday();
+    if (typeof renderHints === "function") renderHints();
   }
 
   function bind() {
@@ -157,7 +159,8 @@ const Woche = (() => {
   function reset() { which = defaultWhich(); state = { days: {}, notes: "", feeling: null }; saved = false; }
   // Öffnen direkt auf „nächste Woche“ (z. B. aus der Sonntags-Benachrichtigung)
   function focusNext() { which = "next"; }
+  function focusWeek(weekStartIso) { which = weekStartIso === iso(monday(0)) ? "this" : "next"; }
 
   which = defaultWhich();
-  return { bind, render, reset, focusNext };
+  return { bind, render, reset, focusNext, focusWeek };
 })();

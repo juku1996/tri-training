@@ -8,8 +8,19 @@ const Fragen = (() => {
     return typeof formatWhen === "function" ? formatWhen(iso) : new Date(iso).toLocaleString("de-DE");
   }
 
+  async function renderLeft() {
+    const { data, error } = await db.rpc("questions_left_today");
+    const el = $("fragen-left");
+    if (error || typeof data !== "number") { el.textContent = ""; return; }
+    el.textContent = data > 0 ? "Heute noch " + data + (data === 1 ? " Frage" : " Fragen") + " möglich."
+      : "Für heute sind deine 5 Fragen aufgebraucht. Morgen geht es weiter.";
+    $("fragen-send").disabled = data <= 0;
+    text().disabled = data <= 0;
+  }
+
   async function render() {
     if (!me) return;
+    renderLeft();
     const { data, error } = await db.from("claude_requests")
       .select("id, question, status, answer, plan_changed, created_at, answered_at")
       .eq("user_id", me.id).order("created_at", { ascending: false }).limit(10);
@@ -58,10 +69,11 @@ const Fragen = (() => {
     btn.disabled = true;
     const { error } = await db.from("claude_requests").insert({ user_id: me.id, question: q });
     btn.disabled = false;
+    renderLeft();
     if (error) { m.textContent = translate(error); m.className = "msg error"; return; }
     text().value = "";
     $("fragen-count").textContent = "";
-    m.textContent = "Gesendet ✓ Du bekommst eine Benachrichtigung, sobald Claude geantwortet hat.";
+    m.textContent = "Gesendet ✓ Claude schaut spätestens zur nächsten vollen Stunde (8–22 Uhr) nach. Du bekommst eine Benachrichtigung.";
     m.className = "msg ok";
     render();
   }
