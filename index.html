@@ -335,6 +335,24 @@
     .claude-msg .msg:empty { display: none; }
     #res-sheet .sheet { max-height: calc(100vh - 32px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
     .cm-actions button { width: auto; padding: 10px 18px; }
+    /* Freie Trainings */
+    .add-btn { display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .workout-row {
+      display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 10px 0;
+      background: none; color: var(--fg); border-radius: 0; border-top: 1px solid var(--line); font-weight: 400;
+    }
+    .plan-day + .workout-row { border-top: 0; }
+    .w-icon { flex: none; width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; }
+    .w-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+    .w-text b { font-weight: 650; }
+    .w-meta { font-size: .85rem; color: var(--muted); }
+    .workout-row.planned .w-text b { color: var(--accent); }
+    #wk-sheet .sheet { max-height: calc(100vh - 32px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    #wk-sports .chip, #wk-days .chip { padding: 8px 12px; font-size: .9rem; }
+    .wk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+    #wk-day { margin-top: 8px; }
+    .wk-row-btns { display: flex; gap: 10px; margin-top: 6px; }
+    .wk-row-btns button { flex: 1; }
     .trial-note { font-size: .85rem; background: var(--accent-soft); border-radius: 12px; padding: 10px 12px; }
 
     .footer-note { text-align: center; font-size: .8rem; color: var(--muted); margin-top: 8px; }
@@ -472,6 +490,7 @@
           <h2 id="today-title">Als Nächstes</h2>
           <div id="today-body"></div>
         </div>
+        <button type="button" class="secondary add-btn" data-add-workout style="margin-bottom:16px">＋ Training eintragen</button>
         <div id="hints"></div>
         <div class="card" id="heute-pin" hidden>
           <div class="plan-head"><h2>Neu auf der Pinnwand</h2></div>
@@ -493,6 +512,14 @@
             <div class="bar"><span id="plan-progress-bar"></span></div>
           </div>
           <div id="plan-body"></div>
+        </div>
+
+        <div class="card" id="workout-card">
+          <div class="plan-head"><h2>Freie Trainings</h2></div>
+          <p class="hint" style="font-size:.9rem;margin:4px 0 10px">Alles, was nicht im Plan steht: zusätzliches Schwimmen, Fußball, Yoga, Wandern … Claude berücksichtigt es beim Planen.</p>
+          <button type="button" class="add-btn" data-add-workout>＋ Training eintragen</button>
+          <p class="hint" id="workout-sum" style="margin:10px 0 0"></p>
+          <div id="workout-list"></div>
         </div>
 
         <div class="card" id="fragen-card">
@@ -684,6 +711,68 @@
     </button>
   </nav>
 
+  <!-- Freies Training eintragen -->
+  <div class="sheet-backdrop" id="wk-sheet" role="dialog" aria-modal="true" aria-labelledby="wk-title-h" hidden>
+    <div class="sheet">
+      <h2 id="wk-title-h">Training eintragen</h2>
+      <div class="field q">
+        <label id="wk-sport-label">Sportart</label>
+        <div class="chips" id="wk-sports" role="radiogroup" aria-labelledby="wk-sport-label"></div>
+      </div>
+      <div class="field q">
+        <label for="wk-day">Wann?</label>
+        <div class="chips" id="wk-days"></div>
+        <input id="wk-day" type="date">
+        <div class="hint" id="wk-future" hidden>Liegt in der Zukunft: wird als „geplant“ vorgemerkt. Danach einfach antippen und die Werte ergänzen.</div>
+      </div>
+      <div class="field q">
+        <label for="wk-name">Bezeichnung <span class="opt">(optional)</span></label>
+        <input id="wk-name" type="text" maxlength="60" placeholder="z. B. Kraul-Technik, Hallenfußball">
+      </div>
+      <div id="wk-values">
+        <div class="wk-grid">
+          <div class="field q">
+            <label for="wk-dur">Dauer</label>
+            <input id="wk-dur" type="text" inputmode="text" placeholder="Min. oder h:mm">
+          </div>
+          <div class="field q" id="wk-dist-field">
+            <label for="wk-dist">Distanz <span class="opt">(opt.)</span></label>
+            <div class="input-unit"><input id="wk-dist" type="text" inputmode="decimal"><span class="unit" id="wk-dist-unit">km</span></div>
+          </div>
+          <div class="field q">
+            <label for="wk-kcal">Kalorien <span class="opt">(opt.)</span></label>
+            <div class="input-unit"><input id="wk-kcal" type="text" inputmode="numeric" placeholder="z. B. 450"><span class="unit">kcal</span></div>
+          </div>
+          <div class="field q">
+            <label for="wk-hr">Ø Puls <span class="opt">(opt.)</span></label>
+            <div class="input-unit"><input id="wk-hr" type="text" inputmode="numeric" placeholder="z. B. 142"><span class="unit">bpm</span></div>
+          </div>
+        </div>
+        <div class="field q">
+          <label id="wk-feeling-label">Wie hat es sich angefühlt? <span class="opt">(optional)</span></label>
+          <div class="chips scale" id="wk-feeling" role="radiogroup" aria-labelledby="wk-feeling-label">
+            <button type="button" class="chip" data-v="1">1</button>
+            <button type="button" class="chip" data-v="2">2</button>
+            <button type="button" class="chip" data-v="3">3</button>
+            <button type="button" class="chip" data-v="4">4</button>
+            <button type="button" class="chip" data-v="5">5</button>
+          </div>
+          <div class="scale-ends"><span>sehr schwer</span><span>locker</span></div>
+        </div>
+      </div>
+      <div class="field q">
+        <label for="wk-note">Notiz <span class="opt">(optional)</span></label>
+        <input id="wk-note" type="text" maxlength="1000" placeholder="z. B. mit Natalie, Knie gut">
+      </div>
+      <div class="msg" id="wk-msg" role="status"></div>
+      <button type="button" id="wk-save">Speichern</button>
+      <div class="wk-row-btns">
+        <button type="button" class="ghost" id="wk-cancel">Abbrechen</button>
+        <button type="button" class="ghost" id="wk-delete" hidden style="color:var(--error)">Löschen</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Wie war's? Kennwerte nach dem Abhaken -->
   <div class="sheet-backdrop" id="res-sheet" role="dialog" aria-modal="true" aria-labelledby="res-title" hidden>
     <div class="sheet">
@@ -750,6 +839,7 @@
   <script src="feedback.js"></script>
   <script src="ergebnis.js"></script>
   <script src="nachrichten.js"></script>
+  <script src="training.js"></script>
   <script>
     // Verbindung zu Supabase. Dieser Schlüssel ist öffentlich und darf im Code stehen;
     // geschützt werden die Daten durch die Zugriffsregeln in der Datenbank.
@@ -946,6 +1036,7 @@
       Fragen.render();
       Feedback.render();
       Nachrichten.render();
+      Training.render();
       renderHints();
       Push.render();
       jumpToHash();
@@ -1176,6 +1267,7 @@
     Feedback.bind();
     Ergebnis.bind();
     Nachrichten.bind();
+    Training.bind();
 
     // Aus einer Benachrichtigung kommend direkt zur passenden Karte springen
     function jumpToHash() {
