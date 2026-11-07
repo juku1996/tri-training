@@ -129,6 +129,7 @@ const Plan = (() => {
             alert(translate(error));
           } else {
             plan.done = [...done];
+            renderToday();
           }
         });
 
@@ -168,5 +169,103 @@ const Plan = (() => {
     updateProgress();
   }
 
-  return { render };
+  // ---------- „Als Nächstes“ im Bereich Heute ----------
+  async function saveDone(plan, doneSet) {
+    const { error } = await db.from("training_plans").update({ done: [...doneSet] })
+      .eq("user_id", me.id).eq("week_start", plan.week_start);
+    if (!error) plan.done = [...doneSet];
+    return error;
+  }
+
+  function nextSession() {
+    const today = parse(iso(new Date()));
+    const all = [];
+    plans.forEach((p) => {
+      const done = new Set(Array.isArray(p.done) ? p.done : []);
+      (Array.isArray(p.sessions) ? p.sessions : []).forEach((s, i) => {
+        const d = dayDate(p.week_start, s.day);
+        if (d >= today && !done.has(s.id)) all.push({ plan: p, s, d, i });
+      });
+    });
+    all.sort((a, b) => (a.d - b.d) || (a.i - b.i));
+    return all.find((x) => !x.s.optional) || all[0] || null;
+  }
+
+  function weekProgress() {
+    const cur = plans.find((p) => p.week_start === iso(thisMonday()));
+    if (!cur) return null;
+    const req = (cur.sessions || []).filter((s) => !s.optional);
+    const done = new Set(cur.done || []);
+    return { n: req.filter((s) => done.has(s.id)).length, total: req.length };
+  }
+
+  function renderToday() {
+    const body = $("today-body");
+    if (!body) return;
+    body.innerHTML = "";
+    const title = $("today-title");
+    const actions = document.createElement("div"); actions.className = "today-actions";
+
+    if (!plans.length) {
+      title.textContent = "Dein Plan";
+      const p = document.createElement("p"); p.className = "hint"; p.style.margin = "0";
+      p.textContent = "Noch kein Plan. Trag deine Woche ein, dann erstellt Claude ihn für dich.";
+      const b = document.createElement("button"); b.type = "button"; b.textContent = "Woche eintragen";
+      b.addEventListener("click", () => { Woche.focusNext(); Woche.render(); showTab("plan", "week-card"); });
+      actions.append(b);
+      body.append(p, actions);
+      return;
+    }
+
+    const nx = nextSession();
+    const prog = weekProgress();
+    if (!nx) {
+      title.textContent = "Geschafft";
+      const p = document.createElement("p"); p.style.margin = "0";
+      p.textContent = "Alle Einheiten erledigt. Stark! 🎉";
+      body.append(p);
+    } else {
+      const sp = SPORT[nx.s.sport] || SPORT.other;
+      const isTod = isToday(nx.d);
+      title.textContent = isTod ? "Heute" : "Als Nächstes";
+      const when = document.createElement("div"); when.className = "today-when";
+      when.textContent = nx.d.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "short" });
+      const item = document.createElement("div"); item.className = "today-item";
+      const dot = document.createElement("span"); dot.className = "sdot"; dot.style.background = sp.color;
+      const txt = document.createElement("div");
+      const t = document.createElement("div"); t.className = "t"; t.textContent = nx.s.title;
+      const m = document.createElement("div"); m.className = "m";
+      m.textContent = [sp.label, nx.s.duration_min ? nx.s.duration_min + " Min." : null, nx.s.intensity].filter(Boolean).join(" · ");
+      txt.append(t, m);
+      if (Array.isArray(nx.s.details) && nx.s.details.length) {
+        const ul = document.createElement("ul"); ul.style.margin = "8px 0 0"; ul.style.paddingLeft = "18px";
+        nx.s.details.forEach((d) => { const li = document.createElement("li"); li.textContent = d; li.style.margin = "3px 0"; ul.append(li); });
+        txt.append(ul);
+      }
+      item.append(dot, txt);
+      body.append(when, item);
+
+      const doneBtn = document.createElement("button"); doneBtn.type = "button"; doneBtn.textContent = "Erledigt ✓";
+      doneBtn.addEventListener("click", async () => {
+        doneBtn.disabled = true;
+        const set = new Set(nx.plan.done || []); set.add(nx.s.id);
+        const err = await saveDone(nx.plan, set);
+        doneBtn.disabled = false;
+        if (err) return alert(translate(err));
+        draw(); renderToday();
+      });
+      actions.append(doneBtn);
+    }
+    const all = document.createElement("button"); all.type = "button"; all.className = "secondary"; all.textContent = "Ganzer Plan";
+    all.dataset.goto = "plan"; all.dataset.scroll = "plan-card";
+    actions.append(all);
+    body.append(actions);
+    if (prog && prog.total) {
+      const p = document.createElement("p"); p.className = "hint"; p.style.margin = "12px 0 0";
+      p.textContent = "Diese Woche: " + prog.n + " von " + prog.total + " Einheiten erledigt";
+      body.append(p);
+    }
+  }
+
+  return { render, renderToday };
 })();

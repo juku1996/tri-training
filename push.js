@@ -4,7 +4,7 @@
 const Push = (() => {
   const TYPES = [
     { id: "messages", label: "Neue Nachrichten auf der Pinnwand" },
-    { id: "coach", label: "Neue Einschätzung oder Plan von Claude" },
+    { id: "coach", label: "Plan, Einschätzung und Antworten von Claude" },
     { id: "weekly", label: "Sonntags: Erinnerung an den Wochencheck" }
   ];
   let prefs = { messages: true, coach: true, weekly: true };

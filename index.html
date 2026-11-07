@@ -277,6 +277,45 @@
     .session.done .session-title { text-decoration: line-through; text-decoration-color: var(--muted); }
     .opt-pill { font-size: .7rem; padding: 2px 8px; background: var(--bg); color: var(--muted); }
 
+    /* Bereiche und Leiste unten */
+    body.has-tabs main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+    .tabbar {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+      display: flex; justify-content: center; gap: 0;
+      background: color-mix(in srgb, var(--card) 92%, transparent);
+      -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+      border-top: 1px solid var(--line);
+      padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+    }
+    .tabbar button {
+      flex: 1; max-width: 120px; background: none; color: var(--muted); padding: 6px 0 4px;
+      display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: .72rem; font-weight: 600; border-radius: 10px;
+    }
+    .tabbar svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .tabbar button[aria-current="page"] { color: var(--accent); }
+    .tabbar .dot-badge { position: relative; }
+    .hello-card .hello { margin-bottom: 6px; }
+    .hello-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .mini-cd { font-size: .85rem; color: var(--muted); }
+    .today-item { display: flex; gap: 12px; align-items: flex-start; }
+    .today-item .sdot { width: 12px; height: 12px; margin-top: 6px; }
+    .today-item .t { font-size: 1.15rem; font-weight: 700; }
+    .today-item .m { color: var(--muted); font-size: .9rem; margin-top: 2px; }
+    .today-when { font-size: .8rem; font-weight: 650; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); margin-bottom: 6px; }
+    .today-actions { display: flex; gap: 10px; margin-top: 14px; }
+    .today-actions button { flex: 1; }
+    .hint-card { display: flex; align-items: center; gap: 12px; background: var(--accent-soft); border: 0; }
+    .hint-card .hint-text { flex: 1; font-size: .95rem; }
+    .hint-card .hint-text b { display: block; }
+    .hint-card button { width: auto; padding: 9px 14px; font-size: .9rem; }
+    #heute-pin .ghost { padding-left: 0; margin-top: 6px; }
+    .status-pill { font-size: .72rem; font-weight: 650; padding: 2px 8px; border-radius: 999px; background: var(--bg); color: var(--muted); }
+    .status-pill.ok { background: var(--accent-soft); color: var(--ok); }
+    .answer { margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: var(--bg); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .answer-by { font-size: .78rem; font-weight: 650; color: var(--accent); margin-bottom: 2px; }
+    #fragen-chips .chip, #feedback-kind .chip { padding: 7px 12px; font-size: .88rem; }
+    .fb-resolved { opacity: .55; }
+
     .footer-note { text-align: center; font-size: .8rem; color: var(--muted); margin-top: 8px; }
   </style>
 </head>
@@ -293,7 +332,6 @@
         <div class="families">Kurth · Minich · Rudolf</div>
       </div>
       <div class="spacer"></div>
-      <button id="logout" class="ghost" hidden>Abmelden</button>
     </div>
 
     <section class="countdown" aria-live="polite">
@@ -396,122 +434,185 @@
       <p class="footer-note">Der Trainings-Feed der Familie ist nach dem Anmelden sichtbar.</p>
     </section>
 
-    <!-- Eigene Seite (erster Entwurf) -->
+    <!-- Eigene Seite: vier Bereiche -->
     <section id="view-home" hidden>
-      <div class="card">
-        <p class="hello" id="hello"></p>
-        <span class="pill" id="my-distance"></span>
-      </div>
 
-
-      <div class="card" id="plan-card">
-        <div class="plan-head">
-          <h2>Dein Trainingsplan</h2>
-          <span id="plan-range"></span>
-        </div>
-        <div id="plan-tabs"></div>
-        <div class="plan-prog" id="plan-progress" hidden>
-          <p class="hint" id="plan-progress-text"></p>
-          <div class="bar"><span id="plan-progress-bar"></span></div>
-        </div>
-        <div id="plan-body"></div>
-      </div>
-
-      <div class="card coach" id="coach-card" hidden>
-        <h2>Deine Einschätzung</h2>
-        <p class="lead" id="coach-summary"></p>
-        <div class="prog">
-          <div><span>Heute ungefähr</span><b id="coach-now"></b></div>
-          <div><span>Ziel bis Juli</span><b id="coach-target"></b></div>
-        </div>
-        <details id="coach-details">
-          <summary>Alles anzeigen</summary>
-          <div id="coach-body"></div>
-        </details>
-        <div class="meta" id="coach-meta"></div>
-      </div>
-
-      <div class="card" id="week-card">
-        <div class="week-head">
-          <h2>Deine Woche</h2>
-          <span class="badge" id="week-badge" hidden>Eingetragen ✓</span>
-        </div>
-        <p class="hint" id="week-intro" style="font-size:.9rem;margin:4px 0 0"></p>
-        <div class="week-toggle">
-          <button type="button" class="chip" id="week-this">Diese Woche</button>
-          <button type="button" class="chip" id="week-next">Nächste Woche</button>
-        </div>
-        <div class="week-range" id="week-range"></div>
-        <div class="hint" style="margin:0 0 4px">Minuten pro Tag</div>
-        <div id="week-days"></div>
-        <div class="week-total" id="week-total"></div>
-        <div class="field q">
-          <label for="week-notes">Besonderheiten <span class="opt">(optional)</span></label>
-          <textarea id="week-notes" rows="2" maxlength="1000" placeholder="z. B. Dienstreise Mi–Do, Schwimmbad Freitag zu, leicht erkältet"></textarea>
-        </div>
-        <div class="field q" id="week-feeling-field">
-          <label id="week-feeling-label">Wie hast du dich letzte Woche gefühlt? <span class="opt">(optional)</span></label>
-          <div class="chips scale" id="week-feeling" role="radiogroup" aria-labelledby="week-feeling-label">
-            <button type="button" class="chip" data-v="1">1</button>
-            <button type="button" class="chip" data-v="2">2</button>
-            <button type="button" class="chip" data-v="3">3</button>
-            <button type="button" class="chip" data-v="4">4</button>
-            <button type="button" class="chip" data-v="5">5</button>
-          </div>
-          <div class="scale-ends"><span>platt</span><span>topfit</span></div>
-        </div>
-        <button type="button" id="week-save">Woche speichern</button>
-        <div class="msg" id="week-msg" role="status"></div>
-      </div>
-
-      <div class="card" id="quiz-card">
-        <h2>Dein Trainingsstatus</h2>
-        <p class="hint" id="quiz-status" style="font-size:.9rem;margin:0">Lade …</p>
-        <div class="bar"><span id="quiz-bar"></span></div>
-        <button type="button" id="quiz-open">Fragebogen starten</button>
-      </div>
-
-      <div class="card" id="pinnwand">
-        <h2>Pinnwand</h2>
-        <form class="composer" id="composer">
-          <textarea id="post-text" aria-label="Nachricht an alle" maxlength="1000" placeholder="Schreib was an alle … z. B. „Wer kommt Samstag mit zum Laufen?“"></textarea>
-          <div class="row">
-            <span class="count" id="post-count"></span>
-            <button type="submit" id="post-send">Senden</button>
-          </div>
-          <div class="msg" id="post-msg" role="status"></div>
-        </form>
-        <ul class="posts" id="posts"></ul>
-        <button type="button" class="ghost more" id="posts-more" hidden>Ältere Nachrichten anzeigen</button>
-      </div>
-
-      <div class="card" id="push-card">
-        <h2>Benachrichtigungen</h2>
-        <p class="hint" id="push-status" style="font-size:.9rem;margin:0 0 12px"></p>
-        <button type="button" id="push-enable" hidden>Benachrichtigungen aktivieren</button>
-        <div id="push-on" hidden>
-          <div id="push-toggles"></div>
-          <div class="push-actions">
-            <button type="button" class="secondary" id="push-test">Test senden</button>
-            <button type="button" class="secondary" id="push-off">Ausschalten</button>
+      <!-- HEUTE -->
+      <div class="tab" id="tab-heute">
+        <div class="card hello-card">
+          <p class="hello" id="hello"></p>
+          <div class="hello-meta">
+            <span class="pill" id="my-distance"></span>
+            <span class="mini-cd" id="cd-mini"></span>
           </div>
         </div>
-        <div class="msg" id="push-msg" role="status"></div>
+        <div class="card" id="today-card">
+          <h2 id="today-title">Als Nächstes</h2>
+          <div id="today-body"></div>
+        </div>
+        <div id="hints"></div>
+        <div class="card" id="heute-pin" hidden>
+          <div class="plan-head"><h2>Neu auf der Pinnwand</h2></div>
+          <div id="heute-pin-body"></div>
+          <button type="button" class="ghost" data-goto="familie">Zur Pinnwand ›</button>
+        </div>
       </div>
 
-      <div class="card">
-        <h2>Dabei sind</h2>
-        <ul class="people" id="people"></ul>
+      <!-- PLAN -->
+      <div class="tab" id="tab-plan" hidden>
+        <div class="card" id="plan-card">
+          <div class="plan-head">
+            <h2>Dein Trainingsplan</h2>
+            <span id="plan-range"></span>
+          </div>
+          <div id="plan-tabs"></div>
+          <div class="plan-prog" id="plan-progress" hidden>
+            <p class="hint" id="plan-progress-text"></p>
+            <div class="bar"><span id="plan-progress-bar"></span></div>
+          </div>
+          <div id="plan-body"></div>
+        </div>
+
+        <div class="card" id="fragen-card">
+          <h2>Frag Claude</h2>
+          <p class="hint" style="font-size:.9rem;margin:0 0 10px">Mehr Zeit als gedacht, Einheit verschieben, krank, oder eine Frage zum Training? Claude schaut alle 2 Stunden zwischen 7 und 21 Uhr nach und passt bei Bedarf deinen Plan an.</p>
+          <div class="chips" id="fragen-chips">
+            <button type="button" class="chip" data-text="Ich habe am … doch Zeit (ca. … Minuten). Was kann ich machen?">Ich habe doch Zeit</button>
+            <button type="button" class="chip" data-text="Ich muss die Einheit am … verschieben. Wohin am besten?">Einheit verschieben</button>
+            <button type="button" class="chip" data-text="Ich fühle mich gerade nicht fit: … Was soll ich diese Woche anders machen?">Nicht fit</button>
+            <button type="button" class="chip" data-text="Ich habe eine Frage zu: …">Frage zum Training</button>
+          </div>
+          <form class="composer" id="fragen-form" style="margin-top:10px">
+            <textarea id="fragen-text" aria-label="Frage an Claude" maxlength="1500" placeholder="z. B. „Ich will am Montag doch noch was machen, ich habe 45 Minuten.“"></textarea>
+            <div class="row">
+              <span class="count" id="fragen-count"></span>
+              <button type="submit" id="fragen-send">Senden</button>
+            </div>
+            <div class="msg" id="fragen-msg" role="status"></div>
+          </form>
+          <ul class="posts" id="fragen-list"></ul>
+        </div>
+
+        <div class="card" id="week-card">
+          <div class="week-head">
+            <h2>Deine Woche</h2>
+            <span class="badge" id="week-badge" hidden>Eingetragen ✓</span>
+          </div>
+          <p class="hint" id="week-intro" style="font-size:.9rem;margin:4px 0 0"></p>
+          <div class="week-toggle">
+            <button type="button" class="chip" id="week-this">Diese Woche</button>
+            <button type="button" class="chip" id="week-next">Nächste Woche</button>
+          </div>
+          <div class="week-range" id="week-range"></div>
+          <div class="hint" style="margin:0 0 4px">Minuten pro Tag</div>
+          <div id="week-days"></div>
+          <div class="week-total" id="week-total"></div>
+          <div class="field q">
+            <label for="week-notes">Besonderheiten <span class="opt">(optional)</span></label>
+            <textarea id="week-notes" rows="2" maxlength="1000" placeholder="z. B. Dienstreise Mi–Do, Schwimmbad Freitag zu, leicht erkältet"></textarea>
+          </div>
+          <div class="field q" id="week-feeling-field">
+            <label id="week-feeling-label">Wie hast du dich letzte Woche gefühlt? <span class="opt">(optional)</span></label>
+            <div class="chips scale" id="week-feeling" role="radiogroup" aria-labelledby="week-feeling-label">
+              <button type="button" class="chip" data-v="1">1</button>
+              <button type="button" class="chip" data-v="2">2</button>
+              <button type="button" class="chip" data-v="3">3</button>
+              <button type="button" class="chip" data-v="4">4</button>
+              <button type="button" class="chip" data-v="5">5</button>
+            </div>
+            <div class="scale-ends"><span>platt</span><span>topfit</span></div>
+          </div>
+          <button type="button" id="week-save">Woche speichern</button>
+          <div class="msg" id="week-msg" role="status"></div>
+        </div>
       </div>
 
-      <div class="card">
-        <h2>Kommt als Nächstes</h2>
-        <ul class="soon">
-          <li>Training eintragen</li>
-          <li>Wochenplan mit Einheiten zum Abhaken</li>
-          <li>Was die anderen letzte Woche trainiert haben</li>
-          <li>Grafiken zum Fortschritt</li>
-        </ul>
+      <!-- FAMILIE -->
+      <div class="tab" id="tab-familie" hidden>
+        <div class="card" id="pinnwand">
+          <h2>Pinnwand</h2>
+          <form class="composer" id="composer">
+            <textarea id="post-text" aria-label="Nachricht an alle" maxlength="1000" placeholder="Schreib was an alle … z. B. „Wer kommt Samstag mit zum Laufen?“"></textarea>
+            <div class="row">
+              <span class="count" id="post-count"></span>
+              <button type="submit" id="post-send">Senden</button>
+            </div>
+            <div class="msg" id="post-msg" role="status"></div>
+          </form>
+          <ul class="posts" id="posts"></ul>
+          <button type="button" class="ghost more" id="posts-more" hidden>Ältere Nachrichten anzeigen</button>
+        </div>
+
+        <div class="card">
+          <h2>Dabei sind</h2>
+          <ul class="people" id="people"></ul>
+        </div>
+      </div>
+
+      <!-- ICH -->
+      <div class="tab" id="tab-ich" hidden>
+        <div class="card coach" id="coach-card" hidden>
+          <h2>Deine Einschätzung</h2>
+          <p class="lead" id="coach-summary"></p>
+          <div class="prog">
+            <div><span>Heute ungefähr</span><b id="coach-now"></b></div>
+            <div><span>Ziel bis Juli</span><b id="coach-target"></b></div>
+          </div>
+          <details id="coach-details">
+            <summary>Alles anzeigen</summary>
+            <div id="coach-body"></div>
+          </details>
+          <div class="meta" id="coach-meta"></div>
+        </div>
+
+        <div class="card" id="quiz-card">
+          <h2>Dein Trainingsstatus</h2>
+          <p class="hint" id="quiz-status" style="font-size:.9rem;margin:0">Lade …</p>
+          <div class="bar"><span id="quiz-bar"></span></div>
+          <button type="button" id="quiz-open">Fragebogen starten</button>
+        </div>
+
+        <div class="card" id="feedback-card">
+          <h2>Feedback an Julius</h2>
+          <p class="hint" style="font-size:.9rem;margin:0 0 10px">Idee, Fehler oder Lob zur App? Julius bekommt eine Benachrichtigung.</p>
+          <div class="chips" id="feedback-kind" role="radiogroup" aria-label="Art des Feedbacks">
+            <button type="button" class="chip" data-v="Idee" aria-pressed="true">Idee</button>
+            <button type="button" class="chip" data-v="Fehler" aria-pressed="false">Fehler</button>
+            <button type="button" class="chip" data-v="Lob" aria-pressed="false">Lob</button>
+            <button type="button" class="chip" data-v="Sonstiges" aria-pressed="false">Sonstiges</button>
+          </div>
+          <form class="composer" id="feedback-form" style="margin-top:10px">
+            <textarea id="feedback-text" aria-label="Feedback" maxlength="2000" placeholder="Was sollen wir verbessern?"></textarea>
+            <div class="row">
+              <span class="count"></span>
+              <button type="submit" id="feedback-send">Senden</button>
+            </div>
+            <div class="msg" id="feedback-msg" role="status"></div>
+          </form>
+        </div>
+
+        <div class="card" id="admin-feedback" hidden>
+          <div class="plan-head"><h2>Feedback der Familie</h2><span class="badge" id="admin-feedback-count" hidden></span></div>
+          <ul class="posts" id="admin-feedback-list"></ul>
+        </div>
+
+        <div class="card" id="push-card">
+          <h2>Benachrichtigungen</h2>
+          <p class="hint" id="push-status" style="font-size:.9rem;margin:0 0 12px"></p>
+          <button type="button" id="push-enable" hidden>Benachrichtigungen aktivieren</button>
+          <div id="push-on" hidden>
+            <div id="push-toggles"></div>
+            <div class="push-actions">
+              <button type="button" class="secondary" id="push-test">Test senden</button>
+              <button type="button" class="secondary" id="push-off">Ausschalten</button>
+            </div>
+          </div>
+          <div class="msg" id="push-msg" role="status"></div>
+        </div>
+
+        <div class="card">
+          <button type="button" class="secondary" id="logout">Abmelden</button>
+        </div>
       </div>
     </section>
 
@@ -537,6 +638,25 @@
 
     <p class="msg error" id="fatal" hidden></p>
   </main>
+
+  <nav class="tabbar" id="tabbar" hidden aria-label="Bereiche">
+    <button type="button" data-tab="heute" aria-current="page">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      <span>Heute</span>
+    </button>
+    <button type="button" data-tab="plan">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16M8 14l2 2 4-4"/></svg>
+      <span>Plan</span>
+    </button>
+    <button type="button" data-tab="familie">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M15 14.2c.6-.2 1.3-.3 2-.3 2.5 0 4 1.7 4 4.6"/></svg>
+      <span>Familie</span>
+    </button>
+    <button type="button" data-tab="ich">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>
+      <span>Ich</span>
+    </button>
+  </nav>
 
   <!-- Hinweis: App zum Home-Bildschirm hinzufügen -->
   <div class="sheet-backdrop" id="install" role="dialog" aria-modal="true" aria-labelledby="install-title" hidden>
@@ -573,6 +693,8 @@
   <script src="woche.js"></script>
   <script src="push.js"></script>
   <script src="plan.js"></script>
+  <script src="fragen.js"></script>
+  <script src="feedback.js"></script>
   <script>
     // Verbindung zu Supabase. Dieser Schlüssel ist öffentlich und darf im Code stehen;
     // geschützt werden die Daten durch die Zugriffsregeln in der Datenbank.
@@ -613,6 +735,7 @@
         $("cd-weeks").textContent = "Wettkampf ist vorbei";
       }
       $("cd-race").textContent = "Dortmund Triathlon · Hafen · " + dateText;
+      $("cd-mini").textContent = days > 0 ? "Noch " + days + " Tage bis Dortmund" : $("cd-weeks").textContent;
     }
 
     // ---------- Ansicht wechseln ----------
@@ -620,8 +743,31 @@
       $("view-auth").hidden = view !== "auth";
       $("view-home").hidden = view !== "home";
       $("view-quiz").hidden = view !== "quiz";
-      $("logout").hidden = view === "auth";
+      document.querySelector(".countdown").hidden = view !== "auth";
+      $("tabbar").hidden = view !== "home";
+      document.body.classList.toggle("has-tabs", view === "home");
     }
+
+    // ---------- Bereiche (Heute / Plan / Familie / Ich) ----------
+    let currentTab = "heute";
+    function showTab(name, scrollId) {
+      currentTab = name;
+      ["heute", "plan", "familie", "ich"].forEach((t) => { $("tab-" + t).hidden = t !== name; });
+      document.querySelectorAll("#tabbar button").forEach((b) => {
+        if (b.dataset.tab === name) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+      });
+      if (scrollId) {
+        setTimeout(() => { const el = $(scrollId); if (el && !el.hidden) el.scrollIntoView({ behavior: "smooth", block: "start" }); }, 50);
+      } else {
+        window.scrollTo(0, 0);
+      }
+      if (name === "heute" && me) renderHeute();
+    }
+    document.querySelectorAll("#tabbar button").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
+    document.addEventListener("click", (e) => {
+      const g = e.target.closest("[data-goto]");
+      if (g) showTab(g.dataset.goto, g.dataset.scroll);
+    });
 
     function setTab(which) {
       const login = which === "login";
@@ -733,7 +879,10 @@
       loadCoach();
       if (location.hash === "#woche") Woche.focusNext();
       Woche.render();
-      Plan.render();
+      Plan.render().then(() => Plan.renderToday());
+      Fragen.render();
+      Feedback.render();
+      renderHints();
       Push.render();
       jumpToHash();
       loadPosts();
@@ -768,6 +917,59 @@
       card.hidden = false;
     }
 
+    // ---------- Heute ----------
+    async function renderHeute() {
+      Plan.renderToday();
+      renderHints();
+      renderPinPreview();
+    }
+
+    function renderPinPreview() {
+      const box = $("heute-pin");
+      const m = lastPosts && lastPosts[0];
+      // nur zeigen, wenn die neueste Nachricht von jemand anderem ist und nicht älter als 3 Tage
+      if (!m || !me || m.author_id === me.id || (Date.now() - new Date(m.created_at)) > 3 * 86400000) { box.hidden = true; return; }
+      const body = $("heute-pin-body");
+      body.innerHTML = "";
+      const head = document.createElement("div"); head.className = "posts";
+      const who = document.createElement("div");
+      who.innerHTML = "";
+      const b = document.createElement("b"); b.textContent = (m.author ? m.author.name : "") + " ";
+      const w = document.createElement("span"); w.className = "hint"; w.textContent = formatWhen(m.created_at);
+      who.append(b, w);
+      const t = document.createElement("div"); t.className = "body"; t.style.whiteSpace = "pre-wrap"; t.style.marginTop = "4px";
+      t.textContent = m.body.length > 160 ? m.body.slice(0, 157) + "…" : m.body;
+      body.append(who, t);
+      box.hidden = false;
+    }
+
+    async function renderHints() {
+      const box = $("hints");
+      if (!me) return;
+      const nextMon = (() => { const n = new Date(); const d = new Date(n.getFullYear(), n.getMonth(), n.getDate()); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + 7); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); })();
+      const [st, wk] = await Promise.all([
+        db.from("athlete_status").select("completed_at").eq("user_id", me.id).maybeSingle(),
+        db.from("week_availability").select("week_start").eq("user_id", me.id).eq("week_start", nextMon).maybeSingle()
+      ]);
+      box.innerHTML = "";
+      const add = (title, text, btn, tab, scroll, action) => {
+        const c = document.createElement("div"); c.className = "card hint-card";
+        const t = document.createElement("div"); t.className = "hint-text";
+        const b = document.createElement("b"); b.textContent = title;
+        t.append(b, document.createTextNode(text));
+        const x = document.createElement("button"); x.type = "button"; x.textContent = btn;
+        if (action) x.addEventListener("click", action); else { x.dataset.goto = tab; if (scroll) x.dataset.scroll = scroll; }
+        c.append(t, x); box.append(c);
+      };
+      if (!(st.data && st.data.completed_at)) {
+        add("Fragebogen noch offen", "Damit Claude deinen Plan auf dich zuschneiden kann.", "Weiter", null, null, () => $("quiz-open").click());
+      }
+      const dow = (new Date().getDay() + 6) % 7;
+      if (dow >= 3 && !wk.data) {
+        add("Nächste Woche eintragen", "Wie viel Zeit hast du? Daraus entsteht dein Plan.", "Eintragen", "plan", "week-card", () => { Woche.focusNext(); Woche.render(); showTab("plan", "week-card"); });
+      }
+    }
+
     // ---------- Pinnwand ----------
     function formatWhen(iso) {
       const d = new Date(iso);
@@ -799,6 +1001,7 @@
 
     function renderPosts(posts) {
       lastPosts = posts;
+      renderPinPreview();
       const list = $("posts");
       list.innerHTML = "";
       if (!posts.length) {
@@ -892,6 +1095,7 @@
         await loadHome(session.user);
       } else {
         me = null;
+        showTab("heute");
         Fragebogen.reset();
         Woche.reset();
         if (channel) { db.removeChannel(channel); channel = null; }
@@ -903,17 +1107,21 @@
     Fragebogen.bind();
     Woche.bind();
     Push.bind();
+    Fragen.bind();
+    Feedback.bind();
 
     // Aus einer Benachrichtigung kommend direkt zur passenden Karte springen
     function jumpToHash() {
-      const map = { "#plan": "plan-card", "#woche": "week-card", "#pinnwand": "pinnwand", "#einschaetzung": "coach-card" };
-      const id = map[location.hash];
-      if (!id) return;
+      const map = {
+        "#plan": ["plan", "plan-card"], "#woche": ["plan", "week-card"], "#fragen": ["plan", "fragen-card"],
+        "#pinnwand": ["familie", "pinnwand"], "#einschaetzung": ["ich", "coach-card"], "#feedback": ["ich", "admin-feedback"]
+      };
+      const t = map[location.hash];
+      if (!t) return;
       setTimeout(() => {
-        const el = $(id);
-        if (el && !el.hidden) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        showTab(t[0], t[1]);
         history.replaceState(null, "", location.pathname);
-      }, 400);
+      }, 300);
     }
     window.addEventListener("hashchange", () => { if (me) { if (location.hash === "#woche") { Woche.focusNext(); Woche.render(); } jumpToHash(); } });
 
