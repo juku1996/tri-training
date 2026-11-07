@@ -1,7 +1,7 @@
 // Service Worker: macht die App offline startbar.
 // Bei jeder Änderung an den Dateien die Versionsnummer erhöhen,
 // damit alle Geräte die neue Version laden.
-const CACHE = "tri-training-v3";
+const CACHE = "tri-training-v4";
 const FILES = ["./", "index.html", "manifest.webmanifest"];
 const CDN_HOST = "cdn.jsdelivr.net";
 

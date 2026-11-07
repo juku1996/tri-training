@@ -94,24 +94,6 @@
     .people li:first-child { border-top: 0; padding-top: 0; }
     .soon { color: var(--muted); font-size: .95rem; margin: 0; padding-left: 18px; }
     .soon li { margin: 4px 0; }
-    .seg { display: flex; gap: 6px; }
-    .seg label { flex: 1; margin: 0; position: relative; }
-    .seg input { position: absolute; inset: 0; width: 1px; height: 1px; padding: 0; margin: 0; border: 0; opacity: 0; pointer-events: none; }
-    .seg span {
-      display: block; text-align: center; padding: 11px 6px; border-radius: 10px;
-      border: 1px solid var(--line); background: var(--bg); color: var(--fg);
-      font-size: .95rem; font-weight: 600; cursor: pointer;
-    }
-    .seg input:checked + span { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-    .seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
-    .pills { display: flex; gap: 6px; flex-wrap: wrap; }
-    .family { margin-top: 14px; }
-    .family:first-child { margin-top: 0; }
-    .family h3 {
-      display: flex; justify-content: space-between; font-size: .8rem; font-weight: 650;
-      text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 6px;
-    }
-    .empty { color: var(--muted); font-size: .9rem; padding: 4px 0 2px; }
     .footer-note { text-align: center; font-size: .8rem; color: var(--muted); margin-top: 8px; }
   </style>
 </head>
@@ -213,14 +195,6 @@
             <div class="hint">Mindestens 8 Zeichen</div>
           </div>
           <div class="field">
-            <label id="reg-family-label">Familie</label>
-            <div class="seg" role="radiogroup" aria-labelledby="reg-family-label">
-              <label><input type="radio" name="reg-family" value="Kurth"><span>Kurth</span></label>
-              <label><input type="radio" name="reg-family" value="Minich"><span>Minich</span></label>
-              <label><input type="radio" name="reg-family" value="Rudolf"><span>Rudolf</span></label>
-            </div>
-          </div>
-          <div class="field">
             <label for="reg-distance">Deine Distanz</label>
             <select id="reg-distance">
               <option value="olympisch">Olympische Distanz (1,5 / 40 / 10 km)</option>
@@ -243,25 +217,13 @@
     <section id="view-home" hidden>
       <div class="card">
         <p class="hello" id="hello"></p>
-        <div class="pills">
-          <span class="pill" id="my-family" hidden></span>
-          <span class="pill" id="my-distance"></span>
-        </div>
+        <span class="pill" id="my-distance"></span>
       </div>
 
-      <div class="card" id="pick-family" hidden>
-        <h2>Zu welcher Familie gehörst du?</h2>
-        <div class="seg" role="radiogroup" aria-label="Familie">
-          <label><input type="radio" name="pick-family" value="Kurth"><span>Kurth</span></label>
-          <label><input type="radio" name="pick-family" value="Minich"><span>Minich</span></label>
-          <label><input type="radio" name="pick-family" value="Rudolf"><span>Rudolf</span></label>
-        </div>
-        <div class="msg" id="pick-msg" role="status"></div>
-      </div>
 
       <div class="card">
         <h2>Dabei sind</h2>
-        <div id="people"></div>
+        <ul class="people" id="people"></ul>
       </div>
 
       <div class="card">
@@ -286,7 +248,6 @@
     const SUPABASE_KEY = "sb_publishable__U5EXUkAHmygnrG6198H3A_dFLTKeep";
 
     const DEFAULT_RACE_DATE = "2027-07-18"; // Dortmund, noch zu bestätigen
-    const FAMILIES = ["Kurth", "Minich", "Rudolf"];
     const DISTANCE_LABEL = { olympisch: "Olympische Distanz", sprint: "Sprint / Volksdistanz" };
 
     const $ = (id) => document.getElementById(id);
@@ -379,10 +340,7 @@
       const password = $("reg-password").value;
       const distance = $("reg-distance").value;
       const code = $("reg-code").value.trim();
-      const famInput = document.querySelector('input[name="reg-family"]:checked');
-      const family = famInput ? famInput.value : "";
       if (!name || !email || !password || !code) return msg("reg-msg", "Bitte alle Felder ausfüllen.", "error");
-      if (!family) return msg("reg-msg", "Bitte wähle deine Familie aus.", "error");
       if (password.length < 8) return msg("reg-msg", "Das Passwort braucht mindestens 8 Zeichen.", "error");
 
       const btn = e.submitter || e.target.querySelector("button");
@@ -396,7 +354,7 @@
       const { data, error } = await db.auth.signUp({
         email, password,
         options: {
-          data: { name, distance, family, family_code: code },
+          data: { name, distance, family_code: code },
           emailRedirectTo: location.origin + location.pathname
         }
       });
@@ -418,7 +376,7 @@
     async function loadHome(user) {
       const { data: profiles, error } = await db
         .from("profiles")
-        .select("id, name, distance, race_date, family")
+        .select("id, name, distance, race_date")
         .order("name");
       if (error) {
         $("fatal").hidden = false;
@@ -429,9 +387,6 @@
       const name = me ? me.name : (user.user_metadata && user.user_metadata.name) || "";
       $("hello").textContent = "Hallo " + name + "!";
       $("my-distance").textContent = me ? DISTANCE_LABEL[me.distance] : "";
-      $("my-family").hidden = !(me && me.family);
-      $("my-family").textContent = me && me.family ? "Familie " + me.family : "";
-      $("pick-family").hidden = !(me && !me.family);
       renderCountdown(me ? me.race_date : DEFAULT_RACE_DATE);
 
       renderPeople(profiles, user.id);
@@ -439,55 +394,19 @@
     }
 
     function renderPeople(profiles, myId) {
-      const box = $("people");
-      box.innerHTML = "";
-      const groups = FAMILIES.map((f) => ({ title: "Familie " + f, list: profiles.filter((p) => p.family === f) }));
-      const rest = profiles.filter((p) => !FAMILIES.includes(p.family));
-      if (rest.length) groups.push({ title: "Ohne Familie", list: rest });
-
-      groups.forEach((g) => {
-        const sec = document.createElement("div");
-        sec.className = "family";
-        const h = document.createElement("h3");
-        const t = document.createElement("span"); t.textContent = g.title;
-        const c = document.createElement("span"); c.textContent = g.list.length || "";
-        h.append(t, c);
-        sec.append(h);
-        if (!g.list.length) {
-          const e = document.createElement("div");
-          e.className = "empty"; e.textContent = "Noch niemand angemeldet";
-          sec.append(e);
-        } else {
-          const ul = document.createElement("ul");
-          ul.className = "people";
-          g.list.forEach((p) => {
-            const li = document.createElement("li");
-            const n = document.createElement("span");
-            n.textContent = p.name + (p.id === myId ? " (du)" : "");
-            const d = document.createElement("span");
-            d.className = "pill";
-            d.textContent = p.distance === "sprint" ? "Sprint" : "Olympisch";
-            li.append(n, d);
-            ul.append(li);
-          });
-          sec.append(ul);
-        }
-        box.append(sec);
+      const list = $("people");
+      list.innerHTML = "";
+      profiles.forEach((p) => {
+        const li = document.createElement("li");
+        const n = document.createElement("span");
+        n.textContent = p.name + (p.id === myId ? " (du)" : "");
+        const d = document.createElement("span");
+        d.className = "pill";
+        d.textContent = p.distance === "sprint" ? "Sprint" : "Olympisch";
+        li.append(n, d);
+        list.append(li);
       });
     }
-
-    // Familie nachträglich wählen (falls beim Registrieren nicht gesetzt)
-    document.querySelectorAll('input[name="pick-family"]').forEach((el) => {
-      el.addEventListener("change", async () => {
-        if (!me) return;
-        msg("pick-msg", "Speichere …");
-        const { error } = await db.from("profiles").update({ family: el.value }).eq("id", me.id);
-        if (error) return msg("pick-msg", translate(error), "error");
-        msg("pick-msg", "");
-        const { data } = await db.auth.getUser();
-        if (data && data.user) loadHome(data.user);
-      });
-    });
 
     async function onSession(session) {
       if (session && session.user) {
