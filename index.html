@@ -6,88 +6,387 @@
   <title>Tri-Training</title>
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Tri-Training">
   <meta name="theme-color" content="#0b6e99">
   <style>
-    :root { --bg:#f5f7fa; --fg:#14202b; --accent:#0b6e99; --card:#fff; }
+    :root {
+      --bg: #f3f6f9; --fg: #14202b; --muted: #5d6b78; --accent: #0b6e99;
+      --accent-soft: #e2f0f7; --card: #ffffff; --line: rgba(20, 32, 43, .12);
+      --error: #b42318; --ok: #1a7f37;
+      --swim: #2b8fd6; --hero: #0b6e99; --on-accent: #ffffff; --bike: #e0892b; --run: #2fa36b;
+    }
     @media (prefers-color-scheme: dark) {
-      :root { --bg:#0f1419; --fg:#e6edf3; --accent:#4cb3e0; --card:#1a222b; }
+      :root {
+        --bg: #0f1419; --fg: #e6edf3; --muted: #93a1ae; --accent: #4cb3e0;
+        --accent-soft: #15303f; --card: #19212a; --line: rgba(230, 237, 243, .12);
+        --error: #ff7b72; --ok: #56d364;
+        --hero: #0e5878; --on-accent: #08202c;
+      }
     }
     * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
     body {
-      margin: 0; padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
-      font-family: -apple-system, system-ui, sans-serif;
-      background: var(--bg); color: var(--fg);
-    } 
-    main { max-width: 480px; margin: 0 auto; padding: 24px 0; }
-    h1 { font-size: 1.6rem; margin: 0 0 4px; }
-    p.sub { margin: 0 0 24px; opacity: .7; }
-    .card { background: var(--card); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
-    label { display: block; font-size: .85rem; opacity: .7; margin-bottom: 6px; }
-    input {
+      margin: 0;
+      padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+      font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      background: var(--bg); color: var(--fg); line-height: 1.4;
+    }
+    main { max-width: 460px; margin: 0 auto; padding: 20px 0 32px; }
+    [hidden] { display: none !important; }
+
+    /* Kopfzeile */
+    .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+    .brand .dots { display: flex; gap: 4px; }
+    .brand .dots span { width: 10px; height: 10px; border-radius: 50%; }
+    .brand h1 { font-size: 1.15rem; margin: 0; letter-spacing: .01em; }
+    .brand .spacer { flex: 1; }
+
+    /* Countdown */
+    .countdown {
+      background: var(--hero); color: #fff; border-radius: 18px;
+      padding: 22px 20px 20px; margin-bottom: 16px;
+    }
+    .countdown .label { font-size: .85rem; opacity: .85; text-transform: uppercase; letter-spacing: .06em; }
+    .countdown .big { font-size: 3.4rem; font-weight: 750; line-height: 1; margin: 8px 0 4px; font-variant-numeric: tabular-nums; }
+    .countdown .big small { font-size: 1.1rem; font-weight: 600; margin-left: 6px; }
+    .countdown .meta { font-size: .95rem; opacity: .92; }
+    .countdown .race { margin-top: 12px; font-size: .9rem; opacity: .9; }
+
+    /* Karten und Formulare */
+    .card { background: var(--card); border-radius: 16px; padding: 18px; margin-bottom: 16px; border: 1px solid var(--line); }
+    .card h2 { font-size: 1.05rem; margin: 0 0 12px; }
+    .tabs { display: flex; background: var(--bg); border-radius: 10px; padding: 4px; margin-bottom: 16px; }
+    .tabs button {
+      flex: 1; margin: 0; padding: 9px; border-radius: 8px; background: transparent;
+      color: var(--muted); font-weight: 600; font-size: .95rem;
+    }
+    .tabs button[aria-selected="true"] { background: var(--card); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+    .field { margin-bottom: 12px; }
+    label { display: block; font-size: .85rem; color: var(--muted); margin-bottom: 5px; }
+    input, select {
       width: 100%; padding: 12px; font-size: 1rem; border-radius: 10px;
-      border: 1px solid rgba(128,128,128,.35); background: transparent; color: inherit;
+      border: 1px solid var(--line); background: var(--bg); color: inherit;
+      font-family: inherit; -webkit-appearance: none; appearance: none;
     }
+    input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .hint { font-size: .8rem; color: var(--muted); margin-top: 4px; }
     button {
-      margin-top: 12px; width: 100%; padding: 12px; font-size: 1rem; border: 0;
-      border-radius: 10px; background: var(--accent); color: #fff; font-weight: 600;
+      width: 100%; padding: 13px; font-size: 1rem; border: 0; border-radius: 10px;
+      background: var(--accent); color: var(--on-accent); font-weight: 650; font-family: inherit; cursor: pointer;
     }
-    #status { margin-top: 10px; font-size: .9rem; opacity: .8; }
+    button:disabled { opacity: .6; cursor: default; }
+    button.ghost { background: transparent; color: var(--accent); width: auto; padding: 6px 10px; font-size: .9rem; }
+    .msg { margin-top: 12px; font-size: .9rem; min-height: 1.2em; }
+    .msg.error { color: var(--error); }
+    .msg.ok { color: var(--ok); }
+
+    /* Eigene Seite */
+    .hello { font-size: 1.5rem; font-weight: 700; margin: 0 0 2px; }
+    .pill {
+      display: inline-block; font-size: .8rem; font-weight: 600; padding: 3px 10px;
+      border-radius: 999px; background: var(--accent-soft); color: var(--accent);
+    }
+    .people { list-style: none; margin: 0; padding: 0; }
+    .people li { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+    .people li:first-child { border-top: 0; padding-top: 0; }
+    .soon { color: var(--muted); font-size: .95rem; margin: 0; padding-left: 18px; }
+    .soon li { margin: 4px 0; }
+    .footer-note { text-align: center; font-size: .8rem; color: var(--muted); margin-top: 8px; }
   </style>
 </head>
 <body>
   <main>
-    <h1>Tri-Training</h1>
-    <p class="sub">Test: Läuft die App, und bleiben Daten gespeichert?</p>
-
-    <div class="card">
-      <label for="name">Dein Name</label>
-      <input id="name" type="text" placeholder="z. B. Anna" autocomplete="off">
-      <button id="save">Speichern</button>
-      <div id="status"></div>
+    <div class="brand">
+      <div class="dots" aria-hidden="true">
+        <span style="background:var(--swim)"></span>
+        <span style="background:var(--bike)"></span>
+        <span style="background:var(--run)"></span>
+      </div>
+      <h1>Tri-Training</h1>
+      <div class="spacer"></div>
+      <button id="logout" class="ghost" hidden>Abmelden</button>
     </div>
 
-    <div class="card">
-      <div id="greeting">Hallo!</div>
-      <div id="visits" style="opacity:.7;font-size:.9rem;margin-top:6px"></div>
-    </div>
+    <section class="countdown" aria-live="polite">
+      <div class="label">Noch bis zum Start</div>
+      <div class="big"><span id="cd-days">–</span><small>Tage</small></div>
+      <div class="meta" id="cd-weeks"></div>
+      <div class="race" id="cd-race"></div>
+    </section>
+
+    <!-- Startseite: Anmelden / Registrieren -->
+    <section id="view-auth" hidden>
+      <div class="card">
+        <div class="tabs" role="tablist">
+          <button role="tab" id="tab-login" aria-selected="true">Anmelden</button>
+          <button role="tab" id="tab-register" aria-selected="false">Registrieren</button>
+        </div>
+
+        <form id="form-login" novalidate>
+          <div class="field">
+            <label for="login-email">E-Mail</label>
+            <input id="login-email" type="email" autocomplete="email" inputmode="email" required>
+          </div>
+          <div class="field">
+            <label for="login-password">Passwort</label>
+            <input id="login-password" type="password" autocomplete="current-password" required>
+          </div>
+          <button type="submit">Anmelden</button>
+          <div class="msg" id="login-msg" role="status"></div>
+        </form>
+
+        <form id="form-register" novalidate hidden>
+          <div class="field">
+            <label for="reg-name">Vorname</label>
+            <input id="reg-name" type="text" autocomplete="given-name" maxlength="40" required>
+          </div>
+          <div class="field">
+            <label for="reg-email">E-Mail</label>
+            <input id="reg-email" type="email" autocomplete="email" inputmode="email" required>
+          </div>
+          <div class="field">
+            <label for="reg-password">Passwort</label>
+            <input id="reg-password" type="password" autocomplete="new-password" minlength="8" required>
+            <div class="hint">Mindestens 8 Zeichen</div>
+          </div>
+          <div class="field">
+            <label for="reg-distance">Deine Distanz</label>
+            <select id="reg-distance">
+              <option value="olympisch">Olympische Distanz (1,5 / 40 / 10 km)</option>
+              <option value="sprint">Sprint / Volksdistanz</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="reg-code">Familien-Code</label>
+            <input id="reg-code" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" required>
+            <div class="hint">Bekommst du von Julius.</div>
+          </div>
+          <button type="submit">Konto erstellen</button>
+          <div class="msg" id="reg-msg" role="status"></div>
+        </form>
+      </div>
+      <p class="footer-note">Der Trainings-Feed der Familie ist nach dem Anmelden sichtbar.</p>
+    </section>
+
+    <!-- Eigene Seite (erster Entwurf) -->
+    <section id="view-home" hidden>
+      <div class="card">
+        <p class="hello" id="hello"></p>
+        <span class="pill" id="my-distance"></span>
+      </div>
+
+      <div class="card">
+        <h2>Dabei sind</h2>
+        <ul class="people" id="people"></ul>
+      </div>
+
+      <div class="card">
+        <h2>Kommt als Nächstes</h2>
+        <ul class="soon">
+          <li>Training eintragen</li>
+          <li>Wochenplan mit Einheiten zum Abhaken</li>
+          <li>Was die anderen letzte Woche trainiert haben</li>
+          <li>Grafiken zum Fortschritt</li>
+        </ul>
+      </div>
+    </section>
+
+    <p class="msg error" id="fatal" hidden></p>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
-    // Alle Daten liegen lokal im Browser dieses Geräts.
-    const KEY = "tri-training-v1";
+    // Verbindung zu Supabase. Dieser Schlüssel ist öffentlich und darf im Code stehen;
+    // geschützt werden die Daten durch die Zugriffsregeln in der Datenbank.
+    const SUPABASE_URL = "https://ppbivvclycjqwdnfzrpj.supabase.co";
+    const SUPABASE_KEY = "sb_publishable__U5EXUkAHmygnrG6198H3A_dFLTKeep";
 
-    function load() {
-      try { return JSON.parse(localStorage.getItem(KEY)) || {}; }
-      catch (e) { return {}; }
+    const DEFAULT_RACE_DATE = "2027-07-18"; // Dortmund, noch zu bestätigen
+    const DISTANCE_LABEL = { olympisch: "Olympische Distanz", sprint: "Sprint / Volksdistanz" };
+
+    const $ = (id) => document.getElementById(id);
+    let db = null;
+    let me = null;
+
+    // ---------- Countdown ----------
+    function daysUntil(isoDate) {
+      const [y, m, d] = isoDate.split("-").map(Number);
+      const race = new Date(y, m - 1, d);
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      return Math.round((race - today) / 86400000);
     }
-    function save(data) {
-      try { localStorage.setItem(KEY, JSON.stringify(data)); return true; }
-      catch (e) { return false; }
+    function renderCountdown(isoDate) {
+      const days = daysUntil(isoDate);
+      const [y, m, d] = isoDate.split("-").map(Number);
+      const dateText = new Date(y, m - 1, d).toLocaleDateString("de-DE", { day: "numeric", month: "long", year: "numeric" });
+      if (days > 0) {
+        $("cd-days").textContent = days;
+        const w = Math.floor(days / 7), r = days % 7;
+        $("cd-weeks").textContent = w + " Wochen" + (r ? " und " + r + (r === 1 ? " Tag" : " Tage") : "");
+      } else if (days === 0) {
+        $("cd-days").textContent = "0";
+        $("cd-weeks").textContent = "Heute ist Wettkampftag!";
+      } else {
+        $("cd-days").textContent = "–";
+        $("cd-weeks").textContent = "Wettkampf ist vorbei";
+      }
+      $("cd-race").textContent = "Dortmund Triathlon · " + dateText;
     }
 
-    const data = load();
-    data.visits = (data.visits || 0) + 1;
-    save(data);
-
-    const nameInput = document.getElementById("name");
-    const greeting = document.getElementById("greeting");
-    const visits = document.getElementById("visits");
-    const status = document.getElementById("status");
-
-    function render() {
-      greeting.textContent = data.name ? "Hallo " + data.name + "!" : "Hallo! Wie heißt du?";
-      visits.textContent = "App bisher " + data.visits + "x geöffnet";
-      nameInput.value = data.name || "";
+    // ---------- Ansicht wechseln ----------
+    function show(view) {
+      $("view-auth").hidden = view !== "auth";
+      $("view-home").hidden = view !== "home";
+      $("logout").hidden = view !== "home";
     }
 
-    document.getElementById("save").addEventListener("click", () => {
-      data.name = nameInput.value.trim();
-      status.textContent = save(data) ? "Gespeichert ✓" : "Speichern nicht möglich";
-      render();
+    function setTab(which) {
+      const login = which === "login";
+      $("tab-login").setAttribute("aria-selected", login);
+      $("tab-register").setAttribute("aria-selected", !login);
+      $("form-login").hidden = !login;
+      $("form-register").hidden = login;
+    }
+    $("tab-login").addEventListener("click", () => setTab("login"));
+    $("tab-register").addEventListener("click", () => setTab("register"));
+
+    function msg(id, text, kind) {
+      const el = $(id);
+      el.textContent = text || "";
+      el.className = "msg" + (kind ? " " + kind : "");
+    }
+
+    // Supabase-Fehler verständlich auf Deutsch
+    function translate(err) {
+      const t = (err && err.message ? err.message : String(err)).toLowerCase();
+      if (t.includes("invalid login credentials")) return "E-Mail oder Passwort stimmt nicht.";
+      if (t.includes("email not confirmed")) return "Bitte bestätige zuerst deine E-Mail (Link im Postfach).";
+      if (t.includes("already registered") || t.includes("already been registered")) return "Mit dieser E-Mail gibt es schon ein Konto. Bitte anmelden.";
+      if (t.includes("database error saving new user")) return "Registrierung abgelehnt. Stimmt der Familien-Code?";
+      if (t.includes("password") && t.includes("characters")) return "Das Passwort ist zu kurz.";
+      if (t.includes("weak") && t.includes("password")) return "Das Passwort ist zu schwach. Bitte ein längeres wählen.";
+      if (t.includes("rate limit") || t.includes("too many")) return "Zu viele Versuche. Bitte kurz warten und nochmal probieren.";
+      if (t.includes("invalid") && t.includes("email")) return "Die E-Mail-Adresse sieht ungültig aus.";
+      if (t.includes("failed to fetch") || t.includes("network")) return "Keine Verbindung. Bist du online?";
+      return "Das hat nicht geklappt: " + (err && err.message ? err.message : err);
+    }
+
+    // ---------- Anmelden ----------
+    $("form-login").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = $("login-email").value.trim();
+      const password = $("login-password").value;
+      if (!email || !password) return msg("login-msg", "Bitte E-Mail und Passwort eingeben.", "error");
+      const btn = e.submitter || e.target.querySelector("button");
+      btn.disabled = true; msg("login-msg", "Melde an …");
+      const { error } = await db.auth.signInWithPassword({ email, password });
+      btn.disabled = false;
+      if (error) return msg("login-msg", translate(error), "error");
+      msg("login-msg", "");
     });
 
-    render();
+    // ---------- Registrieren ----------
+    $("form-register").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = $("reg-name").value.trim();
+      const email = $("reg-email").value.trim();
+      const password = $("reg-password").value;
+      const distance = $("reg-distance").value;
+      const code = $("reg-code").value.trim();
+      if (!name || !email || !password || !code) return msg("reg-msg", "Bitte alle Felder ausfüllen.", "error");
+      if (password.length < 8) return msg("reg-msg", "Das Passwort braucht mindestens 8 Zeichen.", "error");
+
+      const btn = e.submitter || e.target.querySelector("button");
+      btn.disabled = true; msg("reg-msg", "Prüfe Familien-Code …");
+
+      const { data: codeOk, error: codeErr } = await db.rpc("check_family_code", { code });
+      if (codeErr) { btn.disabled = false; return msg("reg-msg", translate(codeErr), "error"); }
+      if (!codeOk) { btn.disabled = false; return msg("reg-msg", "Der Familien-Code stimmt nicht.", "error"); }
+
+      msg("reg-msg", "Lege Konto an …");
+      const { data, error } = await db.auth.signUp({
+        email, password,
+        options: {
+          data: { name, distance, family_code: code },
+          emailRedirectTo: location.origin + location.pathname
+        }
+      });
+      btn.disabled = false;
+      if (error) return msg("reg-msg", translate(error), "error");
+      if (!data.session) {
+        msg("reg-msg", "Fast geschafft! Bitte bestätige deine E-Mail über den Link im Postfach und melde dich dann an.", "ok");
+        setTab("login");
+        $("login-email").value = email;
+        msg("login-msg", "Nach der Bestätigung hier anmelden.", "ok");
+      }
+    });
+
+    $("logout").addEventListener("click", async () => {
+      await db.auth.signOut();
+    });
+
+    // ---------- Eigene Seite ----------
+    async function loadHome(user) {
+      const { data: profiles, error } = await db
+        .from("profiles")
+        .select("id, name, distance, race_date")
+        .order("name");
+      if (error) {
+        $("fatal").hidden = false;
+        $("fatal").textContent = translate(error);
+        return;
+      }
+      me = profiles.find((p) => p.id === user.id) || null;
+      const name = me ? me.name : (user.user_metadata && user.user_metadata.name) || "";
+      $("hello").textContent = "Hallo " + name + "!";
+      $("my-distance").textContent = me ? DISTANCE_LABEL[me.distance] : "";
+      renderCountdown(me ? me.race_date : DEFAULT_RACE_DATE);
+
+      const list = $("people");
+      list.innerHTML = "";
+      profiles.forEach((p) => {
+        const li = document.createElement("li");
+        const n = document.createElement("span");
+        n.textContent = p.name + (p.id === user.id ? " (du)" : "");
+        const d = document.createElement("span");
+        d.className = "pill";
+        d.textContent = p.distance === "sprint" ? "Sprint" : "Olympisch";
+        li.append(n, d);
+        list.append(li);
+      });
+      show("home");
+    }
+
+    async function onSession(session) {
+      if (session && session.user) {
+        await loadHome(session.user);
+      } else {
+        me = null;
+        renderCountdown(DEFAULT_RACE_DATE);
+        show("auth");
+      }
+    }
+
+    // ---------- Start ----------
+    renderCountdown(DEFAULT_RACE_DATE);
+
+    if (!window.supabase) {
+      show("auth");
+      $("fatal").hidden = false;
+      $("fatal").textContent = "Die App konnte nicht laden. Bitte mit Internetverbindung neu öffnen.";
+    } else {
+      db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+      let lastUserId;
+      db.auth.onAuthStateChange((event, session) => {
+        const uid = session && session.user ? session.user.id : null;
+        if (event === "TOKEN_REFRESHED" && uid === lastUserId) return;
+        lastUserId = uid;
+        // Außerhalb des Callbacks weiterarbeiten (Empfehlung von Supabase)
+        setTimeout(() => onSession(session), 0);
+      });
+    }
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").catch(() => {});

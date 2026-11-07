@@ -1,7 +1,7 @@
 {
   "name": "Tri-Training",
   "short_name": "Tri-Training",
-  "description": "Trainingsbegleiter für die Olympische Distanz",
+  "description": "Gemeinsames Triathlon-Training der Familie",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
