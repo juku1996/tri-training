@@ -96,6 +96,39 @@
     .people li:first-child { border-top: 0; padding-top: 0; }
     .soon { color: var(--muted); font-size: .95rem; margin: 0; padding-left: 18px; }
     .soon li { margin: 4px 0; }
+    /* Hinweis: Zum Home-Bildschirm */
+    .sheet-backdrop {
+      position: fixed; inset: 0; background: rgba(8, 20, 28, .45); z-index: 50;
+      display: flex; align-items: flex-end; justify-content: center;
+      padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+      animation: fade .2s ease-out;
+    }
+    .sheet {
+      width: 100%; max-width: 440px; background: var(--card); color: var(--fg);
+      border-radius: 20px; padding: 22px 20px 18px; box-shadow: 0 10px 40px rgba(0,0,0,.25);
+      animation: rise .25s ease-out;
+    }
+    .sheet .icon { width: 56px; height: 56px; border-radius: 13px; display: block; margin-bottom: 12px; }
+    .sheet h2 { font-size: 1.2rem; margin: 0 0 4px; }
+    .sheet p { margin: 0 0 14px; color: var(--muted); font-size: .95rem; }
+    .steps { list-style: none; margin: 0 0 16px; padding: 0; counter-reset: step; }
+    .steps li {
+      counter-increment: step; display: flex; gap: 12px; align-items: flex-start;
+      padding: 9px 0; border-top: 1px solid var(--line); font-size: .95rem;
+    }
+    .steps li:first-child { border-top: 0; }
+    .steps li::before {
+      content: counter(step); flex: none; width: 24px; height: 24px; border-radius: 50%;
+      background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: .8rem;
+      display: flex; align-items: center; justify-content: center; margin-top: 1px;
+    }
+    .steps svg { width: 18px; height: 18px; vertical-align: -3px; color: var(--accent); }
+    .steps small { display: block; color: var(--muted); font-size: .82rem; margin-top: 2px; }
+    .sheet .later { display: block; width: 100%; margin-top: 6px; text-align: center; }
+    @keyframes fade { from { opacity: 0; } }
+    @keyframes rise { from { transform: translateY(24px); opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { .sheet-backdrop, .sheet { animation: none; } }
+
     .footer-note { text-align: center; font-size: .8rem; color: var(--muted); margin-top: 8px; }
   </style>
 </head>
@@ -241,6 +274,36 @@
 
     <p class="msg error" id="fatal" hidden></p>
   </main>
+
+  <!-- Hinweis: App zum Home-Bildschirm hinzufügen -->
+  <div class="sheet-backdrop" id="install" role="dialog" aria-modal="true" aria-labelledby="install-title" hidden>
+    <div class="sheet">
+      <img class="icon" src="icons/apple-touch-icon.png" alt="">
+      <h2 id="install-title">Tri-Training als App</h2>
+      <p>Leg dir die App auf den Home-Bildschirm. Dann öffnet sie sich wie eine normale App, ohne Browser-Leisten.</p>
+
+      <ol class="steps" id="steps-ios" hidden>
+        <li><span>Unten auf das Teilen-Symbol <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Teilen-Symbol"><path d="M12 3v12"/><path d="m7.5 7.5 4.5-4.5 4.5 4.5"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg> tippen<small>Siehst du es nicht? Erst auf ••• tippen.</small></span></li>
+        <li><span>Nach unten scrollen und <b>„Zum Home-Bildschirm“</b> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8v8M8 12h8"/></svg> wählen</span></li>
+        <li><span>Oben rechts auf <b>„Hinzufügen“</b> tippen</span></li>
+      </ol>
+
+      <ol class="steps" id="steps-ios-other" hidden>
+        <li><span>Diese Seite in <b>Safari</b> öffnen<small>Adresse kopieren und in Safari einfügen.</small></span></li>
+        <li><span>Dort auf das Teilen-Symbol <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Teilen-Symbol"><path d="M12 3v12"/><path d="m7.5 7.5 4.5-4.5 4.5 4.5"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg> tippen</span></li>
+        <li><span><b>„Zum Home-Bildschirm“</b> wählen und <b>„Hinzufügen“</b> tippen</span></li>
+      </ol>
+
+      <ol class="steps" id="steps-android" hidden>
+        <li><span>Oben rechts auf das Menü <svg viewBox="0 0 24 24" fill="currentColor" aria-label="Menü-Symbol"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg> tippen</span></li>
+        <li><span><b>„Zum Startbildschirm hinzufügen“</b> oder <b>„App installieren“</b> wählen</span></li>
+        <li><span>Mit <b>„Hinzufügen“</b> bestätigen</span></li>
+      </ol>
+
+      <button type="button" id="install-done">Fertig, nicht mehr anzeigen</button>
+      <button type="button" class="ghost later" id="install-later">Später</button>
+    </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script>
@@ -438,6 +501,35 @@
         setTimeout(() => onSession(session), 0);
       });
     }
+
+    // ---------- Hinweis: Zum Home-Bildschirm ----------
+    (function installHint() {
+      const KEY = "tri-training-install-hint-done";
+      const standalone = window.navigator.standalone === true ||
+        window.matchMedia("(display-mode: standalone)").matches;
+      if (standalone) return;                       // läuft schon als App
+      try { if (localStorage.getItem(KEY)) return; } catch (e) {}
+
+      const ua = navigator.userAgent;
+      const isIOS = /iPhone|iPad|iPod/.test(ua) ||
+        (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      const isAndroid = /Android/.test(ua);
+      if (!isIOS && !isAndroid) return;             // am Computer nicht nötig
+
+      const otherIOSBrowser = isIOS && /CriOS|FxiOS|EdgiOS|OPiOS|GSA\//.test(ua);
+      const stepsId = isAndroid ? "steps-android" : otherIOSBrowser ? "steps-ios-other" : "steps-ios";
+      $(stepsId).hidden = false;
+
+      const box = $("install");
+      const close = () => { box.hidden = true; };
+      $("install-done").addEventListener("click", () => {
+        try { localStorage.setItem(KEY, "1"); } catch (e) {}
+        close();
+      });
+      $("install-later").addEventListener("click", close);
+      box.addEventListener("click", (e) => { if (e.target === box) close(); });
+      setTimeout(() => { box.hidden = false; }, 600);
+    })();
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").catch(() => {});
