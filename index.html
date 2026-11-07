@@ -322,6 +322,19 @@
     .pending-row.replan { margin-top: 0; padding-top: 0; border-top: 0; margin-bottom: 14px; padding: 12px; border-radius: 12px; background: var(--accent-soft); }
     .pending-row.replan button { background: var(--card); }
     .replan-banner { margin: 12px 0 0; padding: 10px 12px; border-radius: 12px; background: var(--accent-soft); font-size: .9rem; }
+    .session-res { font-size: .82rem; color: var(--ok); margin-top: 3px; }
+    .claude-msg { border-color: var(--accent); }
+    .cm-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .cm-head b { color: var(--accent); }
+    .cm-body { margin: 8px 0 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .claude-msg textarea {
+      width: 100%; padding: 10px 12px; font-size: 1rem; border-radius: 10px; border: 1px solid var(--line);
+      background: var(--bg); color: inherit; font-family: inherit; resize: vertical;
+    }
+    .cm-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
+    .claude-msg .msg:empty { display: none; }
+    #res-sheet .sheet { max-height: calc(100vh - 32px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .cm-actions button { width: auto; padding: 10px 18px; }
     .trial-note { font-size: .85rem; background: var(--accent-soft); border-radius: 12px; padding: 10px 12px; }
 
     .footer-note { text-align: center; font-size: .8rem; color: var(--muted); margin-top: 8px; }
@@ -454,6 +467,7 @@
             <span class="mini-cd" id="cd-mini"></span>
           </div>
         </div>
+        <div id="claude-msgs"></div>
         <div class="card" id="today-card">
           <h2 id="today-title">Als Nächstes</h2>
           <div id="today-body"></div>
@@ -670,6 +684,33 @@
     </button>
   </nav>
 
+  <!-- Wie war's? Kennwerte nach dem Abhaken -->
+  <div class="sheet-backdrop" id="res-sheet" role="dialog" aria-modal="true" aria-labelledby="res-title" hidden>
+    <div class="sheet">
+      <h2 id="res-title"></h2>
+      <p id="res-sub"></p>
+      <div id="res-fields"></div>
+      <div class="field q">
+        <label id="res-feeling-label">Wie hat es sich angefühlt? <span class="opt">(optional)</span></label>
+        <div class="chips scale" id="res-feeling" role="radiogroup" aria-labelledby="res-feeling-label">
+          <button type="button" class="chip" data-v="1">1</button>
+          <button type="button" class="chip" data-v="2">2</button>
+          <button type="button" class="chip" data-v="3">3</button>
+          <button type="button" class="chip" data-v="4">4</button>
+          <button type="button" class="chip" data-v="5">5</button>
+        </div>
+        <div class="scale-ends"><span>sehr schwer</span><span>locker</span></div>
+      </div>
+      <div class="field q">
+        <label for="res-complaints">Beschwerden oder Schmerzen? <span class="opt">(optional)</span></label>
+        <input id="res-complaints" type="text" maxlength="500" placeholder="z. B. Schienbein leicht gezogen">
+      </div>
+      <div class="msg" id="res-msg" role="status"></div>
+      <button type="button" id="res-save">Speichern</button>
+      <button type="button" class="ghost later" id="res-skip">Überspringen</button>
+    </div>
+  </div>
+
   <!-- Hinweis: App zum Home-Bildschirm hinzufügen -->
   <div class="sheet-backdrop" id="install" role="dialog" aria-modal="true" aria-labelledby="install-title" hidden>
     <div class="sheet">
@@ -707,6 +748,8 @@
   <script src="plan.js"></script>
   <script src="fragen.js"></script>
   <script src="feedback.js"></script>
+  <script src="ergebnis.js"></script>
+  <script src="nachrichten.js"></script>
   <script>
     // Verbindung zu Supabase. Dieser Schlüssel ist öffentlich und darf im Code stehen;
     // geschützt werden die Daten durch die Zugriffsregeln in der Datenbank.
@@ -895,6 +938,7 @@
       Plan.render().then(() => Plan.renderToday());
       Fragen.render();
       Feedback.render();
+      Nachrichten.render();
       renderHints();
       Push.render();
       jumpToHash();
@@ -933,6 +977,7 @@
     // ---------- Heute ----------
     async function renderHeute() {
       Plan.renderToday();
+      Nachrichten.render();
       renderHints();
       renderPinPreview();
     }
@@ -1122,11 +1167,13 @@
     Push.bind();
     Fragen.bind();
     Feedback.bind();
+    Ergebnis.bind();
+    Nachrichten.bind();
 
     // Aus einer Benachrichtigung kommend direkt zur passenden Karte springen
     function jumpToHash() {
       const map = {
-        "#plan": ["plan", "plan-card"], "#woche": ["plan", "week-card"], "#fragen": ["plan", "fragen-card"],
+        "#heute": ["heute", null], "#plan": ["plan", "plan-card"], "#woche": ["plan", "week-card"], "#fragen": ["plan", "fragen-card"],
         "#pinnwand": ["familie", "pinnwand"], "#einschaetzung": ["ich", "coach-card"], "#feedback": ["ich", "admin-feedback"]
       };
       const t = map[location.hash];

@@ -48,7 +48,7 @@ const Plan = (() => {
     if (error) { $("plan-body").textContent = translate(error); return; }
     plans = data || [];
     if (idx >= plans.length) idx = 0;
-    await pendingWeeks();
+    await Promise.all([pendingWeeks(), Ergebnis.loadFor(plans.map((p) => p.week_start))]);
     draw();
   }
 
@@ -137,6 +137,7 @@ const Plan = (() => {
           } else {
             plan.done = [...done];
             renderToday();
+            if (!was) Ergebnis.open(plan, s, () => draw());
           }
         });
 
@@ -157,6 +158,12 @@ const Plan = (() => {
         meta.className = "session-meta";
         meta.textContent = [sp.label, s.duration_min ? s.duration_min + " Min." : null, s.intensity].filter(Boolean).join(" · ");
         sum.append(title, meta);
+        const res = Ergebnis.get(plan.week_start, s.id);
+        if (res && Ergebnis.summary(s, res)) {
+          const rl = document.createElement("div");
+          rl.className = "session-res"; rl.textContent = Ergebnis.summary(s, res);
+          sum.append(rl);
+        }
         if ((Array.isArray(s.details) && s.details.length) || s.tip) sum.className = "has-details";
         main.append(sum);
         if (Array.isArray(s.details) && s.details.length) {
@@ -300,6 +307,7 @@ const Plan = (() => {
         doneBtn.disabled = false;
         if (err) return alert(translate(err));
         draw(); renderToday();
+        Ergebnis.open(nx.plan, nx.s, () => draw());
       });
       actions.append(doneBtn);
     }
