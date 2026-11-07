@@ -748,8 +748,23 @@
       setTimeout(() => { box.hidden = false; }, 600);
     })();
 
+    // ---------- Updates ----------
+    // Bei jedem Öffnen nach einer neuen Version suchen. Sobald sie aktiv ist,
+    // lädt die Seite sich einmal neu, damit man sie direkt sieht.
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js").catch(() => {});
+      const hadController = !!navigator.serviceWorker.controller;
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!hadController || reloaded) return;   // allererste Installation: kein Neuladen nötig
+        reloaded = true;
+        location.reload();
+      });
+      navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then((reg) => {
+        reg.update().catch(() => {});
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") reg.update().catch(() => {});
+        });
+      }).catch(() => {});
     }
   </script>
 </body>
