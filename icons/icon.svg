@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#0b6e99"/>
+  <circle cx="312" cy="420" r="92" fill="#4cb3e0"/>
+  <circle cx="512" cy="420" r="92" fill="#f0a04b"/>
+  <circle cx="712" cy="420" r="92" fill="#3fbf7f"/>
+  <g transform="translate(0 700) scale(2.56)" color="#ffffff">
+    <g fill="currentColor" opacity=".28">
+          
+          <rect x="32" y="34" width="5" height="44"/>
+          <polygon points="21,78 33,37 36,39 26,78"/>
+          <circle cx="34.5" cy="30" r="6" fill="none" stroke="currentColor" stroke-width="2.5"/>
+          <rect x="40" y="58" width="22" height="20"/>
+          <path d="M64 78V62l7-6 7 6v16z"/>
+          
+          <rect x="82" y="48" width="14" height="30"/>
+          <polygon points="82,49 89,12 96,49"/>
+          <rect x="98" y="64" width="18" height="14"/>
+          
+          <path d="M120 78V26h2V12h6v9h10v-9h6v14h2v52z"/>
+          <rect x="148" y="56" width="16" height="22"/>
+          <rect x="166" y="62" width="16" height="16"/>
+          
+          <rect x="186" y="50" width="12" height="28"/>
+          <polygon points="186,51 192,24 198,51"/>
+          <rect x="200" y="60" width="24" height="18"/>
+          <path d="M226 78V58l8-7 8 7v20z"/>
+          <rect x="244" y="66" width="18" height="12"/>
+          
+          <polygon points="270,78 273.5,24 276.5,24 280,78"/>
+          <ellipse cx="275" cy="24" rx="9" ry="3.5"/>
+          <rect x="268" y="15" width="14" height="5" rx="2"/>
+          <rect x="274.2" y="0" width="1.6" height="16"/>
+          <rect x="288" y="64" width="22" height="14"/>
+          <rect x="312" y="58" width="14" height="20"/>
+          
+          <polygon points="344,78 351,58 357,58 364,78"/>
+          <rect x="352" y="32" width="4" height="27"/>
+          <polygon points="354,32 394,39 394,42 354,37"/>
+          <rect x="348" y="39" width="10" height="8" rx="1"/>
+          <rect x="0" y="77" width="400" height="1.5"/>
+        </g>
+    <path d="M0 85q10-3 20 0t20 0t20 0t20 0t20 0t20 0t20 0t20 0t20 0t20 0t20 0t20 0t20 0t20 0t20 0t20 0t20 0t20 0t20 0t20 0" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".32"/>
+  </g>
+</svg>
