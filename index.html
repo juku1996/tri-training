@@ -206,6 +206,40 @@
     .chips.unknown { margin-top: 8px; }
     .input-unit input:disabled { opacity: .45; }
 
+    /* Wochencheck */
+    .week-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px; }
+    .week-head h2 { margin: 0; }
+    .badge { font-size: .75rem; font-weight: 650; padding: 3px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--ok); }
+    .week-toggle { display: flex; gap: 6px; margin: 12px 0 4px; }
+    .week-toggle .chip { flex: 1; text-align: center; }
+    .week-range { font-size: .85rem; color: var(--muted); margin-bottom: 10px; }
+    .wday { display: flex; align-items: center; gap: 8px; padding: 5px 0; }
+    .wday-name { width: 24px; font-weight: 650; font-size: .9rem; }
+    .wchips { flex: 1; display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+    .wchip {
+      width: 100%; padding: 8px 0; border-radius: 8px; font-size: .85rem; font-weight: 500;
+      background: var(--bg); color: var(--fg); border: 1px solid var(--line);
+    }
+    .wchip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 650; }
+    .week-total { font-weight: 650; margin: 10px 0 14px; }
+    #week-card .q > label { font-size: .9rem; }
+
+    /* Benachrichtigungen */
+    .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); margin: 0; font-size: .95rem; color: var(--fg); }
+    .switch-row:first-child { border-top: 0; }
+    .switch {
+      -webkit-appearance: none; appearance: none; flex: none; width: 48px; height: 28px; padding: 0;
+      border-radius: 999px; background: var(--line); border: 0; position: relative; cursor: pointer; transition: background .2s;
+    }
+    .switch::after {
+      content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%;
+      background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .2s;
+    }
+    .switch:checked { background: var(--accent); }
+    .switch:checked::after { transform: translateX(20px); }
+    .push-actions { display: flex; gap: 10px; margin-top: 12px; }
+    .push-actions button { flex: 1; }
+
     .footer-note { text-align: center; font-size: .8rem; color: var(--muted); margin-top: 8px; }
   </style>
 </head>
@@ -347,6 +381,39 @@
         <div class="meta" id="coach-meta"></div>
       </div>
 
+      <div class="card" id="week-card">
+        <div class="week-head">
+          <h2>Deine Woche</h2>
+          <span class="badge" id="week-badge" hidden>Eingetragen ✓</span>
+        </div>
+        <p class="hint" id="week-intro" style="font-size:.9rem;margin:4px 0 0"></p>
+        <div class="week-toggle">
+          <button type="button" class="chip" id="week-this">Diese Woche</button>
+          <button type="button" class="chip" id="week-next">Nächste Woche</button>
+        </div>
+        <div class="week-range" id="week-range"></div>
+        <div class="hint" style="margin:0 0 4px">Minuten pro Tag</div>
+        <div id="week-days"></div>
+        <div class="week-total" id="week-total"></div>
+        <div class="field q">
+          <label for="week-notes">Besonderheiten <span class="opt">(optional)</span></label>
+          <textarea id="week-notes" rows="2" maxlength="1000" placeholder="z. B. Dienstreise Mi–Do, Schwimmbad Freitag zu, leicht erkältet"></textarea>
+        </div>
+        <div class="field q" id="week-feeling-field">
+          <label id="week-feeling-label">Wie hast du dich letzte Woche gefühlt? <span class="opt">(optional)</span></label>
+          <div class="chips scale" id="week-feeling" role="radiogroup" aria-labelledby="week-feeling-label">
+            <button type="button" class="chip" data-v="1">1</button>
+            <button type="button" class="chip" data-v="2">2</button>
+            <button type="button" class="chip" data-v="3">3</button>
+            <button type="button" class="chip" data-v="4">4</button>
+            <button type="button" class="chip" data-v="5">5</button>
+          </div>
+          <div class="scale-ends"><span>platt</span><span>topfit</span></div>
+        </div>
+        <button type="button" id="week-save">Woche speichern</button>
+        <div class="msg" id="week-msg" role="status"></div>
+      </div>
+
       <div class="card" id="quiz-card">
         <h2>Dein Trainingsstatus</h2>
         <p class="hint" id="quiz-status" style="font-size:.9rem;margin:0">Lade …</p>
@@ -354,7 +421,7 @@
         <button type="button" id="quiz-open">Fragebogen starten</button>
       </div>
 
-      <div class="card">
+      <div class="card" id="pinnwand">
         <h2>Pinnwand</h2>
         <form class="composer" id="composer">
           <textarea id="post-text" aria-label="Nachricht an alle" maxlength="1000" placeholder="Schreib was an alle … z. B. „Wer kommt Samstag mit zum Laufen?“"></textarea>
@@ -366,6 +433,20 @@
         </form>
         <ul class="posts" id="posts"></ul>
         <button type="button" class="ghost more" id="posts-more" hidden>Ältere Nachrichten anzeigen</button>
+      </div>
+
+      <div class="card" id="push-card">
+        <h2>Benachrichtigungen</h2>
+        <p class="hint" id="push-status" style="font-size:.9rem;margin:0 0 12px"></p>
+        <button type="button" id="push-enable" hidden>Benachrichtigungen aktivieren</button>
+        <div id="push-on" hidden>
+          <div id="push-toggles"></div>
+          <div class="push-actions">
+            <button type="button" class="secondary" id="push-test">Test senden</button>
+            <button type="button" class="secondary" id="push-off">Ausschalten</button>
+          </div>
+        </div>
+        <div class="msg" id="push-msg" role="status"></div>
       </div>
 
       <div class="card">
@@ -439,6 +520,8 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="fragebogen.js"></script>
+  <script src="woche.js"></script>
+  <script src="push.js"></script>
   <script>
     // Verbindung zu Supabase. Dieser Schlüssel ist öffentlich und darf im Code stehen;
     // geschützt werden die Daten durch die Zugriffsregeln in der Datenbank.
@@ -572,6 +655,7 @@
 
     $("logout").addEventListener("click", async () => {
       if (channel) { db.removeChannel(channel); channel = null; }
+      await Push.onLogout();
       await db.auth.signOut();
     });
 
@@ -596,6 +680,10 @@
       show("home");
       Fragebogen.renderCard();
       loadCoach();
+      if (location.hash === "#woche") Woche.focusNext();
+      Woche.render();
+      Push.render();
+      jumpToHash();
       loadPosts();
       subscribePosts();
     }
@@ -753,6 +841,7 @@
       } else {
         me = null;
         Fragebogen.reset();
+        Woche.reset();
         if (channel) { db.removeChannel(channel); channel = null; }
         renderCountdown(DEFAULT_RACE_DATE);
         show("auth");
@@ -760,6 +849,21 @@
     }
 
     Fragebogen.bind();
+    Woche.bind();
+    Push.bind();
+
+    // Aus einer Benachrichtigung kommend direkt zur passenden Karte springen
+    function jumpToHash() {
+      const map = { "#woche": "week-card", "#pinnwand": "pinnwand", "#einschaetzung": "coach-card" };
+      const id = map[location.hash];
+      if (!id) return;
+      setTimeout(() => {
+        const el = $(id);
+        if (el && !el.hidden) el.scrollIntoView({ behavior: "smooth", block: "start" });
+        history.replaceState(null, "", location.pathname);
+      }, 400);
+    }
+    window.addEventListener("hashchange", () => { if (me) { if (location.hash === "#woche") { Woche.focusNext(); Woche.render(); } jumpToHash(); } });
 
     // ---------- Start ----------
     renderCountdown(DEFAULT_RACE_DATE);

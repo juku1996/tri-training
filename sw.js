@@ -1,8 +1,8 @@
 // Service Worker: macht die App offline startbar.
 // Bei jeder Änderung an den Dateien die Versionsnummer erhöhen,
 // damit alle Geräte die neue Version laden.
-const CACHE = "tri-training-v10";
-const FILES = ["./", "index.html", "manifest.webmanifest", "fragebogen.js", "icons/apple-touch-icon.png", "icons/icon-192.png"];
+const CACHE = "tri-training-v11";
+const FILES = ["./", "index.html", "manifest.webmanifest", "fragebogen.js", "woche.js", "push.js", "icons/apple-touch-icon.png", "icons/icon-192.png"];
 const CDN_HOST = "cdn.jsdelivr.net";
 
 self.addEventListener("install", (event) => {
@@ -40,4 +40,34 @@ self.addEventListener("fetch", (event) => {
       })
       .catch(() => caches.match(req).then((hit) => hit || caches.match("./")))
   );
+});
+
+// ---------- Push-Benachrichtigungen ----------
+self.addEventListener("push", (event) => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (e) { data = { body: event.data && event.data.text() }; }
+  const title = data.title || "Tri-Training";
+  event.waitUntil(self.registration.showNotification(title, {
+    body: data.body || "",
+    icon: "icons/icon-192.png",
+    badge: "icons/icon-192.png",
+    tag: data.tag,
+    data: { url: data.url || "./" }
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = new URL((event.notification.data && event.notification.data.url) || "./", self.location.href).href;
+  event.waitUntil((async () => {
+    const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const c of all) {
+      if (c.url.startsWith(self.registration.scope)) {
+        await c.focus();
+        if ("navigate" in c) { try { await c.navigate(target); } catch (e) {} }
+        return;
+      }
+    }
+    await self.clients.openWindow(target);
+  })());
 });
