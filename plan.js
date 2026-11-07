@@ -12,6 +12,7 @@ const Plan = (() => {
   };
 
   let plans = [];
+  let replanWeeks = new Set();   // Wochen, die nach dem Plan geändert wurden
   let idx = 0;
 
   const pad = (n) => String(n).padStart(2, "0");
@@ -39,7 +40,7 @@ const Plan = (() => {
     const card = $("plan-card");
     if (!card || !me) return;
     const { data, error } = await db.from("training_plans")
-      .select("week_start, note, sessions, done")
+      .select("week_start, note, sessions, done, plan_written_at")
       .eq("user_id", me.id)
       .gte("week_start", iso(thisMonday()))
       .order("week_start")
@@ -47,6 +48,7 @@ const Plan = (() => {
     if (error) { $("plan-body").textContent = translate(error); return; }
     plans = data || [];
     if (idx >= plans.length) idx = 0;
+    await pendingWeeks();
     draw();
   }
 
@@ -79,6 +81,11 @@ const Plan = (() => {
 
     const plan = plans[idx];
     $("plan-range").textContent = rangeText(plan.week_start);
+    if (replanWeeks.has(plan.week_start)) {
+      const r = document.createElement("div"); r.className = "replan-banner";
+      r.textContent = "Du hast diese Woche geändert. Dein neuer Trainingsplan wird erstellt, bis dahin gilt dieser hier.";
+      body.append(r);
+    }
     if (plan.note) {
       const n = document.createElement("p");
       n.className = "plan-note"; n.textContent = plan.note;
@@ -202,10 +209,20 @@ const Plan = (() => {
   // Eingetragene Wochen ohne Plan (diese oder nächste Woche)
   async function pendingWeeks() {
     if (!me) return [];
-    const { data } = await db.from("week_availability").select("week_start")
+    const { data } = await db.from("week_availability").select("week_start, updated_at")
       .eq("user_id", me.id).gte("week_start", iso(thisMonday())).order("week_start").limit(2);
-    const have = new Set(plans.map((p) => p.week_start));
-    return (data || []).map((r) => r.week_start).filter((w) => !have.has(w));
+    const byWeek = Object.fromEntries(plans.map((p) => [p.week_start, p]));
+    const out = [];
+    replanWeeks = new Set();
+    (data || []).forEach((r) => {
+      const plan = byWeek[r.week_start];
+      if (!plan) out.push({ week: r.week_start, replan: false });
+      else if (plan.plan_written_at && new Date(r.updated_at) > new Date(plan.plan_written_at)) {
+        out.push({ week: r.week_start, replan: true });
+        replanWeeks.add(r.week_start);
+      }
+    });
+    return out;
   }
 
   function editWeekButton(ws, label) {
@@ -231,8 +248,8 @@ const Plan = (() => {
         const st = document.createElement("div"); st.className = "today-when"; st.style.color = "var(--ok)";
         st.textContent = "Woche eingetragen ✓";
         const p = document.createElement("p"); p.style.margin = "0";
-        p.textContent = "Claude erstellt deinen Plan für " + rangeText(pending[0]) + ", du bekommst eine Benachrichtigung, sobald er da ist.";
-        actions.append(editWeekButton(pending[0]));
+        p.textContent = "Claude erstellt deinen Plan für " + rangeText(pending[0].week) + ", du bekommst eine Benachrichtigung, sobald er da ist.";
+        actions.append(editWeekButton(pending[0].week));
         body.append(st, p, actions);
         return;
       }
@@ -295,16 +312,24 @@ const Plan = (() => {
       p.textContent = "Diese Woche: " + prog.n + " von " + prog.total + " Einheiten erledigt";
       body.append(p);
     }
-    // Plan läuft, aber die nächste Woche ist schon eingetragen und wartet noch auf den Plan
-    if (pending.length) {
-      const box = document.createElement("div"); box.id = "today-pending"; box.className = "pending-row";
+    // Geänderte Wochen ganz oben, neu eingetragene Wochen ohne Plan unten
+    pending.forEach((pw) => {
+      const box = document.createElement("div");
+      box.className = "pending-row" + (pw.replan ? " replan" : "");
       const t = document.createElement("div");
-      const b1 = document.createElement("b"); b1.textContent = "Woche " + rangeText(pending[0]) + " eingetragen ✓";
-      const s1 = document.createElement("span"); s1.className = "hint"; s1.textContent = "Plan kommt bald.";
+      const b1 = document.createElement("b");
+      const s1 = document.createElement("span"); s1.className = "hint";
+      if (pw.replan) {
+        b1.textContent = "Dein neuer Trainingsplan wird erstellt";
+        s1.textContent = "Du hast die Woche " + rangeText(pw.week) + " geändert. Bis der neue Plan da ist, gilt der bisherige.";
+      } else {
+        b1.textContent = "Woche " + rangeText(pw.week) + " eingetragen ✓";
+        s1.textContent = "Plan kommt bald.";
+      }
       t.append(b1, s1);
-      box.append(t, editWeekButton(pending[0], "Überarbeiten"));
-      body.append(box);
-    }
+      box.append(t, editWeekButton(pw.week, "Überarbeiten"));
+      if (pw.replan) body.prepend(box); else body.append(box);
+    });
   }
 
   return { render, renderToday };

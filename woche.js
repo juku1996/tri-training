@@ -138,7 +138,7 @@ const Woche = (() => {
     btn.textContent = "Änderungen speichern";
     msgEl.textContent = "Gespeichert ✓ Daraus erstellt Claude deinen Plan.";
     msgEl.className = "msg ok";
-    if (typeof Plan !== "undefined") Plan.renderToday();
+    if (typeof Plan !== "undefined") Plan.render().then(() => Plan.renderToday());
     if (typeof renderHints === "function") renderHints();
   }
 
