@@ -129,6 +129,26 @@
     @keyframes rise { from { transform: translateY(24px); opacity: 0; } }
     @media (prefers-reduced-motion: reduce) { .sheet-backdrop, .sheet { animation: none; } }
 
+    /* Pinnwand */
+    .composer textarea {
+      width: 100%; min-height: 64px; max-height: 200px; padding: 12px; font-size: 1rem;
+      border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: inherit;
+      font-family: inherit; resize: vertical; line-height: 1.4;
+    }
+    .composer textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+    .composer .row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+    .composer .row .count { flex: 1; font-size: .8rem; color: var(--muted); }
+    .composer .row button { width: auto; padding: 10px 18px; }
+    .posts { list-style: none; margin: 14px 0 0; padding: 0; }
+    .posts li { padding: 12px 0; border-top: 1px solid var(--line); }
+    .posts .head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 3px; }
+    .posts .who { font-weight: 650; }
+    .posts .when { font-size: .8rem; color: var(--muted); flex: 1; }
+    .posts .del { background: none; border: 0; padding: 2px 4px; width: auto; color: var(--muted); font-size: .8rem; font-weight: 500; }
+    .posts .body { white-space: pre-wrap; overflow-wrap: anywhere; }
+    .posts .mine .who { color: var(--accent); }
+    .more { margin-top: 8px; }
+
     .footer-note { text-align: center; font-size: .8rem; color: var(--muted); margin-top: 8px; }
   </style>
 </head>
@@ -257,6 +277,20 @@
 
 
       <div class="card">
+        <h2>Pinnwand</h2>
+        <form class="composer" id="composer">
+          <textarea id="post-text" aria-label="Nachricht an alle" maxlength="1000" placeholder="Schreib was an alle … z. B. „Wer kommt Samstag mit zum Laufen?“"></textarea>
+          <div class="row">
+            <span class="count" id="post-count"></span>
+            <button type="submit" id="post-send">Senden</button>
+          </div>
+          <div class="msg" id="post-msg" role="status"></div>
+        </form>
+        <ul class="posts" id="posts"></ul>
+        <button type="button" class="ghost more" id="posts-more" hidden>Ältere Nachrichten anzeigen</button>
+      </div>
+
+      <div class="card">
         <h2>Dabei sind</h2>
         <ul class="people" id="people"></ul>
       </div>
@@ -318,6 +352,9 @@
     const $ = (id) => document.getElementById(id);
     let db = null;
     let me = null;
+    let channel = null;
+    let postLimit = 20;
+    let lastPosts = [];
 
     // ---------- Countdown ----------
     function daysUntil(isoDate) {
@@ -434,6 +471,7 @@
     });
 
     $("logout").addEventListener("click", async () => {
+      if (channel) { db.removeChannel(channel); channel = null; }
       await db.auth.signOut();
     });
 
@@ -456,7 +494,113 @@
 
       renderPeople(profiles, user.id);
       show("home");
+      loadPosts();
+      subscribePosts();
     }
+
+    // ---------- Pinnwand ----------
+    function formatWhen(iso) {
+      const d = new Date(iso);
+      const now = new Date();
+      const mins = Math.round((now - d) / 60000);
+      if (mins < 1) return "gerade eben";
+      if (mins < 60) return "vor " + mins + " Min.";
+      const time = d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+      const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const diffDays = Math.floor((startToday - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000);
+      if (diffDays === 0) return "heute, " + time;
+      if (diffDays === 1) return "gestern, " + time;
+      const opts = { weekday: "short", day: "numeric", month: "short" };
+      if (d.getFullYear() !== now.getFullYear()) opts.year = "numeric";
+      return d.toLocaleDateString("de-DE", opts) + ", " + time;
+    }
+
+    async function loadPosts() {
+      const { data, error } = await db
+        .from("messages")
+        .select("id, body, created_at, author_id, author:profiles(name)")
+        .order("created_at", { ascending: false })
+        .limit(postLimit + 1);
+      if (error) return msg("post-msg", translate(error), "error");
+      const hasMore = data.length > postLimit;
+      renderPosts(data.slice(0, postLimit));
+      $("posts-more").hidden = !hasMore;
+    }
+
+    function renderPosts(posts) {
+      lastPosts = posts;
+      const list = $("posts");
+      list.innerHTML = "";
+      if (!posts.length) {
+        const li = document.createElement("li");
+        li.className = "empty";
+        li.style.color = "var(--muted)";
+        li.textContent = "Noch keine Nachrichten. Schreib die erste!";
+        list.append(li);
+        return;
+      }
+      posts.forEach((m) => {
+        const mine = me && m.author_id === me.id;
+        const li = document.createElement("li");
+        if (mine) li.className = "mine";
+        const head = document.createElement("div"); head.className = "head";
+        const who = document.createElement("span"); who.className = "who";
+        who.textContent = m.author ? m.author.name : "Unbekannt";
+        const when = document.createElement("span"); when.className = "when";
+        when.textContent = formatWhen(m.created_at);
+        when.title = new Date(m.created_at).toLocaleString("de-DE");
+        head.append(who, when);
+        if (mine) {
+          const del = document.createElement("button");
+          del.type = "button"; del.className = "del"; del.textContent = "Löschen";
+          del.addEventListener("click", () => deletePost(m.id));
+          head.append(del);
+        }
+        const body = document.createElement("div"); body.className = "body";
+        body.textContent = m.body;
+        li.append(head, body);
+        list.append(li);
+      });
+    }
+
+    async function deletePost(id) {
+      if (!confirm("Diese Nachricht löschen?")) return;
+      const { error } = await db.from("messages").delete().eq("id", id);
+      if (error) return msg("post-msg", translate(error), "error");
+      loadPosts();
+    }
+
+    function subscribePosts() {
+      if (channel) return;
+      channel = db
+        .channel("pinnwand")
+        .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, () => loadPosts())
+        .subscribe();
+    }
+
+    const postText = $("post-text");
+    postText.addEventListener("input", () => {
+      const n = postText.value.length;
+      $("post-count").textContent = n > 800 ? (1000 - n) + " Zeichen übrig" : "";
+    });
+
+    $("composer").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const body = postText.value.trim();
+      if (!body || !me) return;
+      const btn = $("post-send");
+      btn.disabled = true; msg("post-msg", "");
+      const { error } = await db.from("messages").insert({ body, author_id: me.id });
+      btn.disabled = false;
+      if (error) return msg("post-msg", translate(error), "error");
+      postText.value = ""; $("post-count").textContent = "";
+      loadPosts();
+    });
+
+    $("posts-more").addEventListener("click", () => { postLimit += 20; loadPosts(); });
+
+    // Zeitangaben („vor 5 Min.“) aktuell halten
+    setInterval(() => { if (!$("view-home").hidden) renderPosts(lastPosts); }, 60000);
 
     function renderPeople(profiles, myId) {
       const list = $("people");
@@ -478,6 +622,7 @@
         await loadHome(session.user);
       } else {
         me = null;
+        if (channel) { db.removeChannel(channel); channel = null; }
         renderCountdown(DEFAULT_RACE_DATE);
         show("auth");
       }
