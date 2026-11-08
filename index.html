@@ -1022,7 +1022,8 @@
       }
       me = profiles.find((p) => p.id === user.id) || null;
       const name = me ? me.name : (user.user_metadata && user.user_metadata.name) || "";
-      $("hello").textContent = "Hallo " + name + "!";
+      helloName = name;
+      renderGreeting();
       $("my-distance").textContent = me ? DISTANCE_LABEL[me.distance] : "";
       renderCountdown(me ? me.race_date : DEFAULT_RACE_DATE);
 
@@ -1071,6 +1072,19 @@
       $("coach-meta").textContent = "Von Claude auf Basis deines Fragebogens, Stand " + d + ".";
       card.hidden = false;
     }
+
+    // ---------- Begrüßung nach Uhrzeit ----------
+    let helloName = "";
+    function greeting(name, h = new Date().getHours()) {
+      if (h < 4) return "Geh endlich schlafen, " + name + "! 😴";
+      if (h < 11) return "Guten Morgen, " + name + "!";
+      if (h < 14) return "Guten Mittag, " + name + "!";
+      if (h < 18) return "Guten Tag, " + name + "!";
+      return "Guten Abend, " + name + "!";
+    }
+    function renderGreeting() { if (helloName) $("hello").textContent = greeting(helloName); }
+    setInterval(renderGreeting, 60000);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") renderGreeting(); });
 
     // ---------- Heute ----------
     async function renderHeute() {
