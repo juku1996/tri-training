@@ -56,6 +56,7 @@ const Woche = (() => {
     const { data: last } = await db.from("week_availability")
       .select("days").eq("user_id", me.id).lt("week_start", ws)
       .order("week_start", { ascending: false }).limit(1).maybeSingle();
+    if (typeof Setup !== "undefined" && Setup.daysNow()) { state.days = { ...Setup.daysNow() }; return; }
     if (last && last.days) { state.days = { ...last.days }; return; }
     const { data: st } = await db.from("athlete_status").select("answers").eq("user_id", me.id).maybeSingle();
     const a = st && st.answers;
@@ -76,9 +77,12 @@ const Woche = (() => {
     $("week-next").setAttribute("aria-pressed", which === "next");
     $("week-range").textContent = rangeText(weekStart());
     $("week-badge").hidden = !saved;
+    const hasSetup = typeof Setup !== "undefined" && Setup.exists();
+    $("week-title").textContent = hasSetup ? "Woche weicht ab?" : "Deine Woche";
     $("week-intro").textContent = saved
-      ? "Eingetragen. Du kannst es jederzeit anpassen."
-      : "Wie viel Zeit hast du an welchem Tag? Daraus entsteht dein Wochenplan.";
+      ? "Eingetragen. Claude passt den Plan dieser Woche an."
+      : (hasSetup ? "Deine Trainingswoche gilt automatisch. Nur eintragen, wenn eine Woche anders aussieht (Reise, Krankheit, mehr Zeit)."
+                  : "Wie viel Zeit hast du an welchem Tag? Daraus entsteht dein Wochenplan.");
 
     const box = $("week-days");
     box.innerHTML = "";

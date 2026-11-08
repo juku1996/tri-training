@@ -44,7 +44,7 @@ const Plan = (() => {
       .eq("user_id", me.id)
       .gte("week_start", iso(thisMonday()))
       .order("week_start")
-      .limit(2);
+      .limit(5);
     if (error) { $("plan-body").textContent = translate(error); return; }
     plans = data || [];
     if (idx >= plans.length) idx = 0;
@@ -72,7 +72,8 @@ const Plan = (() => {
       plans.forEach((p, i) => {
         const b = document.createElement("button");
         b.type = "button"; b.className = "chip";
-        b.textContent = p.week_start === cur ? "Diese Woche" : "Nächste Woche";
+        const d = parse(p.week_start), nextMon = new Date(parse(cur)); nextMon.setDate(nextMon.getDate() + 7);
+        b.textContent = p.week_start === cur ? "Diese Woche" : (p.week_start === iso(nextMon) ? "Nächste" : "ab " + d.toLocaleDateString("de-DE", { day: "numeric", month: "numeric" }));
         b.setAttribute("aria-pressed", i === idx);
         b.addEventListener("click", () => { idx = i; draw(); });
         tabs.append(b);
@@ -261,9 +262,10 @@ const Plan = (() => {
         return;
       }
       const p = document.createElement("p"); p.className = "hint"; p.style.margin = "0";
-      p.textContent = "Noch kein Plan. Trag deine Woche ein, dann erstellt Claude ihn für dich.";
-      const b = document.createElement("button"); b.type = "button"; b.textContent = "Woche eintragen";
-      b.addEventListener("click", () => { Woche.focusNext(); Woche.render(); showTab("plan", "week-card"); });
+      const hasSetup = typeof Setup !== "undefined" && Setup.exists();
+      p.textContent = hasSetup ? "Claude erstellt gerade deinen Saisonplan und die nächsten 4 Wochen." : "Noch kein Plan. Leg deine Trainingswoche fest, dann plant Claude deine Saison bis zum Wettkampf.";
+      const b = document.createElement("button"); b.type = "button"; b.textContent = hasSetup ? "Zum Saisonplan" : "Trainingswoche festlegen";
+      b.addEventListener("click", () => showTab("plan", hasSetup ? "season-card" : "setup-card"));
       actions.append(b);
       body.append(p, actions);
       return;

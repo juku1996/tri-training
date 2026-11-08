@@ -359,6 +359,31 @@
     .pool-hours table { border-collapse: collapse; font-size: .92rem; margin: 4px 0 6px; }
     .pool-hours th { text-align: left; font-weight: 650; padding: 2px 14px 2px 0; color: var(--muted); }
     .pool-hours td { padding: 2px 0; font-variant-numeric: tabular-nums; }
+    /* Saisonplan */
+    .season-summary { margin: 0 0 14px; }
+    .phase-bar { position: relative; display: flex; gap: 3px; height: 12px; border-radius: 999px; overflow: visible; margin: 4px 0 12px; }
+    .phase-seg { height: 100%; border-radius: 999px; opacity: .85; }
+    .phase-now { position: absolute; top: -5px; width: 3px; height: 22px; margin-left: -1.5px; border-radius: 2px; background: var(--fg); }
+    .phase-legend { display: grid; gap: 8px; }
+    .phase-item { display: flex; gap: 10px; align-items: flex-start; font-size: .92rem; }
+    .phase-item .sdot { margin-top: 6px; }
+    .phase-item b { display: block; }
+    .phase-item.now b { color: var(--accent); }
+    .season-h { font-size: .8rem; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 18px 0 6px; }
+    .milestone { display: flex; gap: 12px; align-items: flex-start; padding: 9px 0; border-top: 1px solid var(--line); }
+    .season-h + .milestone { border-top: 0; }
+    .ms-text { flex: 1; display: flex; flex-direction: column; }
+    .ms-text b { font-weight: 650; }
+    .milestone.done .ms-text b { color: var(--ok); }
+    .season-weeks { margin-top: 14px; }
+    .season-weeks summary { cursor: pointer; color: var(--accent); font-weight: 600; list-style: none; padding: 4px 0; }
+    .season-weeks summary::-webkit-details-marker { display: none; }
+    .sw-row { display: grid; grid-template-columns: 78px 1fr auto; gap: 8px; padding: 7px 0; border-top: 1px solid var(--line); font-size: .88rem; align-items: baseline; }
+    .sw-row.now { color: var(--accent); font-weight: 650; }
+    .sw-row.past { opacity: .5; }
+    .sw-date { font-variant-numeric: tabular-nums; }
+    .sw-min { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
+    .sw-easy { font-size: .72rem; font-weight: 650; color: var(--ok); }
     .trial-note { font-size: .85rem; background: var(--accent-soft); border-radius: 12px; padding: 10px 12px; }
 
     .footer-note { text-align: center; font-size: .8rem; color: var(--muted); margin-top: 8px; }
@@ -520,6 +545,30 @@
           <div id="plan-body"></div>
         </div>
 
+        <div class="card" id="season-card">
+          <div class="plan-head"><h2>Dein Saisonplan</h2><span class="hint" id="season-race"></span></div>
+          <div id="season-body"></div>
+        </div>
+
+        <div class="card" id="setup-card">
+          <div class="week-head">
+            <h2>Deine Trainingswoche</h2>
+            <span class="badge" id="setup-badge" hidden>Festgelegt ✓</span>
+          </div>
+          <p class="hint" style="font-size:.9rem;margin:4px 0 8px">An diesen Tagen trainierst du normalerweise. Daraus plant Claude deine ganze Saison.</p>
+          <div class="trial-note" id="setup-rec"></div>
+          <div class="hint" style="margin:12px 0 4px">Minuten pro Tag</div>
+          <div id="setup-days"></div>
+          <div class="week-total" id="setup-total"></div>
+          <div class="msg error" id="setup-warn" hidden style="margin:-6px 0 12px"></div>
+          <div class="field q">
+            <label for="setup-notes">Feste Termine oder Wünsche <span class="opt">(optional)</span></label>
+            <textarea id="setup-notes" rows="2" maxlength="500" placeholder="z. B. Mi Barre, Sa lieber lange Radtour, Schwimmen am liebsten Di"></textarea>
+          </div>
+          <button type="button" id="setup-save">Trainingswoche speichern</button>
+          <div class="msg" id="setup-msg" role="status"></div>
+        </div>
+
         <div class="card" id="workout-card">
           <div class="plan-head"><h2>Freie Trainings</h2></div>
           <p class="hint" style="font-size:.9rem;margin:4px 0 10px">Alles, was nicht im Plan steht: zusätzliches Schwimmen, Fußball, Yoga, Wandern … Claude berücksichtigt es beim Planen.</p>
@@ -554,7 +603,7 @@
 
         <div class="card" id="week-card">
           <div class="week-head">
-            <h2>Deine Woche</h2>
+            <h2 id="week-title">Deine Woche</h2>
             <span class="badge" id="week-badge" hidden>Eingetragen ✓</span>
           </div>
           <p class="hint" id="week-intro" style="font-size:.9rem;margin:4px 0 0"></p>
@@ -856,6 +905,7 @@
   <script src="ergebnis.js"></script>
   <script src="nachrichten.js"></script>
   <script src="training.js"></script>
+  <script src="saison.js"></script>
   <script>
     // Karte „Dein Schwimmbad“ im Bereich Ich
     const Bad = (() => {
@@ -1074,6 +1124,8 @@
       Nachrichten.render();
       Training.render();
       Bad.render();
+      Setup.render().then(() => { Saison.render(); Plan.renderToday(); Woche.render(); renderHints(); });
+      $("season-race").textContent = me ? "bis " + new Date((me.race_date || "2027-07-18") + "T12:00").toLocaleDateString("de-DE", { day: "numeric", month: "short", year: "numeric" }) : "";
       renderHints();
       Push.render();
       jumpToHash();
@@ -1176,7 +1228,9 @@
         }
       }
       const dow = (new Date().getDay() + 6) % 7;
-      if (dow >= 3 && !wk.data) {
+      if (typeof Setup !== "undefined" && !Setup.exists()) {
+        add("Neu: Dein Saisonplan", "Leg einmal deine Trainingswoche fest, dann plant Claude deine Saison bis zum Wettkampf.", "Festlegen", "plan", "setup-card");
+      } else if (dow >= 3 && !wk.data && !(typeof Setup !== "undefined" && Setup.exists())) {
         add("Nächste Woche eintragen", "Wie viel Zeit hast du? Daraus entsteht dein Plan.", "Eintragen", "plan", "week-card", () => { Woche.focusNext(); Woche.render(); showTab("plan", "week-card"); });
       }
     }
@@ -1324,11 +1378,12 @@
     Nachrichten.bind();
     Training.bind();
     Bad.bind();
+    Setup.bind();
 
     // Aus einer Benachrichtigung kommend direkt zur passenden Karte springen
     function jumpToHash() {
       const map = {
-        "#heute": ["heute", null], "#plan": ["plan", "plan-card"], "#woche": ["plan", "week-card"], "#fragen": ["plan", "fragen-card"],
+        "#heute": ["heute", null], "#plan": ["plan", "plan-card"], "#saison": ["plan", "season-card"], "#setup": ["plan", "setup-card"], "#woche": ["plan", "week-card"], "#fragen": ["plan", "fragen-card"],
         "#pinnwand": ["familie", "pinnwand"], "#einschaetzung": ["ich", "coach-card"], "#feedback": ["ich", "admin-feedback"]
       };
       const t = map[location.hash];
