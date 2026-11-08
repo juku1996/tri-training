@@ -353,6 +353,12 @@
     #wk-day { margin-top: 8px; }
     .wk-row-btns { display: flex; gap: 10px; margin-top: 6px; }
     .wk-row-btns button { flex: 1; }
+    .pool-picker .chip { padding: 8px 12px; font-size: .9rem; }
+    .pool-add { display: grid; gap: 8px; margin-top: 10px; }
+    .pool-info { margin-top: 10px; }
+    .pool-hours table { border-collapse: collapse; font-size: .92rem; margin: 4px 0 6px; }
+    .pool-hours th { text-align: left; font-weight: 650; padding: 2px 14px 2px 0; color: var(--muted); }
+    .pool-hours td { padding: 2px 0; font-variant-numeric: tabular-nums; }
     .trial-note { font-size: .85rem; background: var(--accent-soft); border-radius: 12px; padding: 10px 12px; }
 
     .footer-note { text-align: center; font-size: .8rem; color: var(--muted); margin-top: 8px; }
@@ -618,6 +624,12 @@
           <div class="meta" id="coach-meta"></div>
         </div>
 
+        <div class="card" id="pool-card" hidden>
+          <div class="plan-head"><h2>Dein Schwimmbad</h2><button type="button" class="ghost" id="pool-edit" style="padding-right:0">Ändern</button></div>
+          <p style="margin:6px 0 8px;font-weight:650" id="pool-name"></p>
+          <div id="pool-body"></div>
+        </div>
+
         <div class="card" id="quiz-card">
           <h2>Dein Trainingsstatus</h2>
           <p class="hint" id="quiz-status" style="font-size:.9rem;margin:0">Lade …</p>
@@ -845,6 +857,25 @@
   <script src="nachrichten.js"></script>
   <script src="training.js"></script>
   <script>
+    // Karte „Dein Schwimmbad“ im Bereich Ich
+    const Bad = (() => {
+      async function render() {
+        if (!me) return;
+        const { data: st } = await db.from("athlete_status").select("answers").eq("user_id", me.id).maybeSingle();
+        const id = st && st.answers && st.answers.pool_id;
+        const card = $("pool-card");
+        if (!id) { card.hidden = true; return; }
+        const { data: p } = await db.from("pools").select("id, name, city, hours, hours_note, pool_length, status").eq("id", id).maybeSingle();
+        if (!p) { card.hidden = true; return; }
+        $("pool-name").textContent = p.name + ", " + p.city;
+        const body = $("pool-body"); body.innerHTML = ""; body.append(poolHoursNode(p));
+        card.hidden = false;
+      }
+      function bind() { $("pool-edit").addEventListener("click", () => Fragebogen.open("swim")); }
+      return { render, bind };
+    })();
+  </script>
+  <script>
     // Verbindung zu Supabase. Dieser Schlüssel ist öffentlich und darf im Code stehen;
     // geschützt werden die Daten durch die Zugriffsregeln in der Datenbank.
     const SUPABASE_URL = "https://ppbivvclycjqwdnfzrpj.supabase.co";
@@ -1042,6 +1073,7 @@
       Feedback.render();
       Nachrichten.render();
       Training.render();
+      Bad.render();
       renderHints();
       Push.render();
       jumpToHash();
@@ -1122,7 +1154,7 @@
       if (!me) return;
       const nextMon = (() => { const n = new Date(); const d = new Date(n.getFullYear(), n.getMonth(), n.getDate()); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) + 7); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); })();
       const [st, wk] = await Promise.all([
-        db.from("athlete_status").select("completed_at").eq("user_id", me.id).maybeSingle(),
+        db.from("athlete_status").select("completed_at, answers").eq("user_id", me.id).maybeSingle(),
         db.from("week_availability").select("week_start").eq("user_id", me.id).eq("week_start", nextMon).maybeSingle()
       ]);
       box.innerHTML = "";
@@ -1137,6 +1169,11 @@
       };
       if (!(st.data && st.data.completed_at)) {
         add("Fragebogen noch offen", "Damit Claude deinen Plan auf dich zuschneiden kann.", "Weiter", null, null, () => $("quiz-open").click());
+      } else {
+        const a = st.data.answers || {};
+        if (a.pool_access === "Ja" && !a.pool_id) {
+          add("Neu: Dein Schwimmbad", "Gib dein Bad an, dann plant Claude Schwimmen passend zu den Öffnungszeiten.", "Angeben", null, null, () => Fragebogen.open("swim"));
+        }
       }
       const dow = (new Date().getDay() + 6) % 7;
       if (dow >= 3 && !wk.data) {
@@ -1286,6 +1323,7 @@
     Ergebnis.bind();
     Nachrichten.bind();
     Training.bind();
+    Bad.bind();
 
     // Aus einer Benachrichtigung kommend direkt zur passenden Karte springen
     function jumpToHash() {

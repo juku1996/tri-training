@@ -1,3 +1,30 @@
+
+// Öffnungszeiten eines Bads als DOM-Knoten (genutzt im Fragebogen und im Bereich Ich)
+function poolHoursNode(p) {
+  const d = document.createElement("div");
+  d.className = "pool-hours";
+  if (p.status === "gefunden" && p.hours) {
+    const t = document.createElement("table");
+    ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"].forEach((k) => {
+      if (!(k in p.hours)) return;
+      const tr = document.createElement("tr");
+      const a = document.createElement("th"); a.textContent = k;
+      const b = document.createElement("td"); b.textContent = p.hours[k];
+      tr.append(a, b); t.append(tr);
+    });
+    d.append(t);
+    const extra = [p.pool_length ? "Becken: " + p.pool_length : null, p.hours_note].filter(Boolean).join(" · ");
+    if (extra) { const n = document.createElement("div"); n.className = "hint"; n.textContent = extra; d.append(n); }
+  } else if (p.status === "nicht_gefunden") {
+    d.className += " hint";
+    d.textContent = "Claude konnte keine Öffnungszeiten finden. Trag Besonderheiten am besten im Wochencheck ein.";
+  } else {
+    d.className += " hint";
+    d.textContent = "Claude sucht die Öffnungszeiten heraus (spätestens zur nächsten vollen Stunde, 8–22 Uhr).";
+  }
+  return d;
+}
+
 // Fragebogen zum Trainingsstatus.
 // Die Antworten landen in der Tabelle athlete_status (nur für die Person selbst lesbar).
 // Fragen ändern oder ergänzen: einfach unten in SECTIONS bearbeiten.
@@ -64,9 +91,12 @@ const Fragebogen = (() => {
         { id: "swim_per_week", label: "Wie oft schwimmst du aktuell pro Woche?", type: "choice",
           options: ["Gar nicht", "Seltener als 1×", "1×", "2×", "3× oder mehr"] },
         { id: "pool_access", label: "Hast du Zugang zu einem Schwimmbad?", type: "choice", options: ["Ja", "Nein"] },
+        { id: "pool_id", label: "Welches Schwimmbad?", type: "pool", optional: true,
+          hint: "Claude sucht die Öffnungszeiten heraus und plant Schwimmen nur, wenn offen ist.",
+          when: (a) => a.pool_access === "Ja" },
         { id: "pool_length", label: "Bahnlänge", type: "choice", options: ["25 m", "50 m", "weiß nicht"],
           when: (a) => a.pool_access === "Ja" },
-        { id: "pool_times", label: "Wann kannst du ins Bad? (Öffnungszeiten, Bahnen)", type: "text", optional: true,
+        { id: "pool_times", label: "Wann passt es dir selbst am besten ins Bad?", type: "text", optional: true,
           placeholder: "z. B. Mo und Mi ab 18 Uhr, Sa morgens", when: (a) => a.pool_access === "Ja" },
         { id: "open_water", label: "Erfahrung im Freiwasser (See, Meer)?", type: "choice",
           options: ["Keine", "Ein bisschen", "Viel"] },
@@ -242,9 +272,13 @@ const Fragebogen = (() => {
   }
 
   // ---------- Fragebogen ----------
-  async function open() {
+  async function open(atSection) {
     if (!loaded) {
       try { await load(); } catch (e) { return alert(translate(e)); }
+    }
+    if (typeof atSection === "string") {
+      const i = SECTIONS.findIndex((s) => s.id === atSection);
+      if (i >= 0) { step = i; show("quiz"); renderStep(); window.scrollTo(0, 0); return; }
     }
     // Beim Fortsetzen beim ersten unvollständigen Schritt einsteigen
     step = 0;
@@ -297,7 +331,9 @@ const Fragebogen = (() => {
     const hasConditionalDeps = SECTIONS[step].fields.some((x) => x.when && String(x.when).includes(f.id));
     const val = answers[f.id];
 
-    if (f.type === "choice" || f.type === "multi") {
+    if (f.type === "pool") {
+      wrap.append(renderPoolPicker(f));
+    } else if (f.type === "choice" || f.type === "multi") {
       const multi = f.type === "multi";
       const group = el("div", "chips");
       group.setAttribute("role", multi ? "group" : "radiogroup");
@@ -412,6 +448,66 @@ const Fragebogen = (() => {
     return wrap;
   }
 
+  // ---------- Schwimmbad auswählen oder neu anlegen ----------
+  function renderPoolPicker(f) {
+    const box = el("div", "pool-picker");
+    const chips = el("div", "chips"); chips.setAttribute("role", "radiogroup"); chips.setAttribute("aria-label", f.label);
+    const info = el("div", "pool-info");
+    const add = el("div", "pool-add"); add.hidden = true;
+    const nameIn = document.createElement("input"); nameIn.type = "text"; nameIn.maxLength = 80; nameIn.placeholder = "Name, z. B. Südbad"; nameIn.setAttribute("aria-label", "Name des Schwimmbads");
+    const cityIn = document.createElement("input"); cityIn.type = "text"; cityIn.maxLength = 60; cityIn.placeholder = "Ort, z. B. Dortmund"; cityIn.setAttribute("aria-label", "Ort");
+    const addBtn = el("button", "secondary", "Bad hinzufügen"); addBtn.type = "button";
+    const addMsg = el("div", "msg");
+    add.append(nameIn, cityIn, addBtn, addMsg);
+    box.append(chips, info, add);
+
+    let pools = [];
+    const showInfo = () => {
+      info.innerHTML = "";
+      const p = pools.find((x) => x.id === answers[f.id]);
+      if (!p) return;
+      info.append(poolHoursNode(p));
+    };
+    const draw = () => {
+      chips.innerHTML = "";
+      pools.forEach((p) => {
+        const b = el("button", "chip", p.name + " · " + p.city); b.type = "button";
+        b.setAttribute("aria-pressed", answers[f.id] === p.id);
+        b.addEventListener("click", () => {
+          answers[f.id] = answers[f.id] === p.id ? "" : p.id;
+          answers.pool_name = answers[f.id] ? p.name + ", " + p.city : "";
+          add.hidden = true; draw();
+        });
+        chips.append(b);
+      });
+      const other = el("button", "chip", "＋ Anderes Bad"); other.type = "button";
+      other.setAttribute("aria-pressed", !add.hidden);
+      other.addEventListener("click", () => { add.hidden = !add.hidden; draw(); if (!add.hidden) nameIn.focus(); });
+      chips.append(other);
+      showInfo();
+    };
+    addBtn.addEventListener("click", async () => {
+      const name = nameIn.value.trim(), city = cityIn.value.trim();
+      if (name.length < 2 || city.length < 2) { addMsg.textContent = "Bitte Name und Ort angeben."; addMsg.className = "msg error"; return; }
+      addBtn.disabled = true;
+      let { data, error } = await db.from("pools").insert({ name, city, created_by: me.id }).select("id, name, city, hours, hours_note, pool_length, status").single();
+      if (error && /duplicate|unique/i.test(error.message || "")) {
+        const r = await db.from("pools").select("id, name, city, hours, hours_note, pool_length, status").ilike("name", name).ilike("city", city).maybeSingle();
+        data = r.data; error = r.error;
+      }
+      addBtn.disabled = false;
+      if (error || !data) { addMsg.textContent = translate(error || "Fehler"); addMsg.className = "msg error"; return; }
+      if (!pools.some((x) => x.id === data.id)) pools.push(data);
+      answers[f.id] = data.id; answers.pool_name = data.name + ", " + data.city;
+      nameIn.value = ""; cityIn.value = ""; addMsg.textContent = "";
+      add.hidden = true; draw();
+    });
+    db.from("pools").select("id, name, city, hours, hours_note, pool_length, status").order("name").then(({ data }) => {
+      pools = data || []; draw();
+    });
+    return box;
+  }
+
   function fmtNum(v) {
     return String(v).replace(".", ",");
   }
@@ -458,6 +554,7 @@ const Fragebogen = (() => {
     if (last) {
       show("home");
       renderCard();
+      if (typeof Bad !== "undefined") Bad.render();
       window.scrollTo(0, 0);
       return;
     }
@@ -478,10 +575,11 @@ const Fragebogen = (() => {
     try { await save(false); } catch (e) {}
     show("home");
     renderCard();
+    if (typeof Bad !== "undefined") Bad.render();
   }
 
   function bind() {
-    $("quiz-open").addEventListener("click", open);
+    $("quiz-open").addEventListener("click", () => open());
     $("quiz-next").addEventListener("click", next);
     $("quiz-back").addEventListener("click", back);
     $("quiz-close").addEventListener("click", close);
@@ -491,5 +589,5 @@ const Fragebogen = (() => {
     answers = {}; completedAt = null; loaded = false; step = 0;
   }
 
-  return { bind, renderCard, reset, SECTIONS };
+  return { bind, renderCard, reset, SECTIONS, open };
 })();
