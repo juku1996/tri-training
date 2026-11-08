@@ -3,13 +3,13 @@
 
 const Training = (() => {
   const SPORTS = [
-    { id: "swim", label: "Schwimmen", icon: "🏊", color: "var(--swim)", dist: "m" },
-    { id: "bike", label: "Rad", icon: "🚴", color: "var(--bike)", dist: "km" },
-    { id: "run", label: "Laufen", icon: "🏃", color: "var(--run)", dist: "km" },
+    { id: "swim", label: "Schwimmen", icon: "🏊", color: "var(--swim)", dist: "m", maxKmh: 7 },
+    { id: "bike", label: "Rad", icon: "🚴", color: "var(--bike)", dist: "km", elev: true, maxKmh: 60 },
+    { id: "run", label: "Laufen", icon: "🏃", color: "var(--run)", dist: "km", elev: true, maxKmh: 25 },
     { id: "strength", label: "Kraft", icon: "💪", color: "#8b6fd6", dist: null },
     { id: "football", label: "Fußball", icon: "⚽", color: "#4a9a5a", dist: "km" },
     { id: "yoga", label: "Yoga", icon: "🧘", color: "#c77dba", dist: null },
-    { id: "hike", label: "Wandern", icon: "🥾", color: "#9a7b4f", dist: "km" },
+    { id: "hike", label: "Wandern", icon: "🥾", color: "#9a7b4f", dist: "km", elev: true, maxKmh: 12 },
     { id: "racket", label: "Tennis/Padel", icon: "🎾", color: "#b5a12d", dist: null },
     { id: "other", label: "Sonstiges", icon: "✨", color: "var(--muted)", dist: "km" }
   ];
@@ -61,7 +61,7 @@ const Training = (() => {
     if (!me) return;
     const since = shift(-28);
     const { data, error } = await db.from("workouts")
-      .select("id, day, sport, title, status, duration_min, distance_km, calories, avg_hr, feeling, note")
+      .select("id, day, sport, title, status, duration_min, distance_km, elevation_m, calories, avg_hr, feeling, note")
       .eq("user_id", me.id).gte("day", since)
       .order("day", { ascending: false }).order("id", { ascending: false }).limit(40);
     const box = $("workout-list");
@@ -100,7 +100,7 @@ const Training = (() => {
     const txt = document.createElement("span"); txt.className = "w-text";
     const t = document.createElement("b"); t.textContent = w.title || sp.label;
     const m = document.createElement("span"); m.className = "w-meta";
-    m.textContent = [dayLabel(w.day), fmtDur(w.duration_min), fmtDist(w), pace(w), w.calories ? w.calories + " kcal" : null].filter(Boolean).join(" · ");
+    m.textContent = [dayLabel(w.day), fmtDur(w.duration_min), fmtDist(w), w.elevation_m ? w.elevation_m + " hm" : null, pace(w), w.calories ? w.calories + " kcal" : null].filter(Boolean).join(" · ");
     txt.append(t, m);
     el.append(ic, txt);
     if (w.status === "geplant") {
@@ -139,6 +139,7 @@ const Training = (() => {
     $("wk-dist-field").hidden = !sp.dist;
     $("wk-dist-unit").textContent = sp.dist === "m" ? "m" : "km";
     $("wk-dist").placeholder = sp.dist === "m" ? "z. B. 1500" : "z. B. 8,5";
+    $("wk-elev-field").hidden = !sp.elev;
   }
   function drawDays() {
     const box = $("wk-days"); box.innerHTML = "";
@@ -159,10 +160,12 @@ const Training = (() => {
     $("wk-day").value = form.day;
     $("wk-name").value = form.title || "";
     $("wk-dur").value = form.duration_min ? (form.duration_min >= 60 ? Math.floor(form.duration_min / 60) + ":" + pad(form.duration_min % 60) : String(form.duration_min)) : "";
+    $("wk-dur").placeholder = "z. B. 45 oder 1:30";
     const sp = sportOf(form.sport);
     $("wk-dist").value = form.distance_km != null ? (sp.dist === "m" ? Math.round(form.distance_km * 1000) : String(form.distance_km).replace(".", ",")) : "";
     $("wk-kcal").value = form.calories || "";
     $("wk-hr").value = form.avg_hr || "";
+    $("wk-elev").value = form.elevation_m != null ? form.elevation_m : "";
     $("wk-note").value = form.note || "";
     document.querySelectorAll("#wk-feeling .chip").forEach((c) => c.setAttribute("aria-pressed", Number(c.dataset.v) === form.feeling));
     $("wk-save").textContent = editing && editing.status === "geplant" ? "Als erledigt speichern" : "Speichern";
@@ -190,6 +193,12 @@ const Training = (() => {
     const kcal = num($("wk-kcal").value), hr = num($("wk-hr").value);
     if (Number.isNaN(kcal) || Number.isNaN(hr)) return fail("Kalorien und Puls bitte als Zahl.");
     if (hr != null && (hr < 30 || hr > 230)) return fail("Der Puls sollte zwischen 30 und 230 liegen.");
+    const elev = sp.elev ? num($("wk-elev").value) : null;
+    if (Number.isNaN(elev) || (elev != null && (elev < 0 || elev > 10000))) return fail("Höhenmeter bitte als Zahl zwischen 0 und 10.000.");
+    // Plausibilität: passt die Dauer zur Distanz?
+    if (dur && dist && sp.maxKmh && dist / (dur / 60) > sp.maxKmh) {
+      return fail("Das wären " + Math.round(dist / (dur / 60)) + " km/h. Stimmt die Dauer? Für Stunden bitte h:mm eingeben, z. B. 1:25.");
+    }
     if (!future && !dur) return fail("Bitte trag noch ein, wie lange du trainiert hast.");
 
     const row = {
@@ -198,6 +207,7 @@ const Training = (() => {
       status: future ? "geplant" : "erledigt",
       duration_min: dur, distance_km: dist, calories: kcal != null ? Math.round(kcal) : null,
       avg_hr: hr != null ? Math.round(hr) : null, feeling: form.feeling || null,
+      elevation_m: elev != null ? Math.round(elev) : null,
       note: $("wk-note").value.trim() || null
     };
     const btn = $("wk-save"); btn.disabled = true;
