@@ -276,6 +276,17 @@
     .session-tip { font-size: .88rem; color: var(--muted); margin: 8px 0 0; }
     .session.done .session-title { text-decoration: line-through; text-decoration-color: var(--muted); }
     .opt-pill { font-size: .7rem; padding: 2px 8px; background: var(--bg); color: var(--muted); }
+    .together-pill { font-size: .72rem; padding: 2px 8px; background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+    .plan-day { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .day-weather { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--muted); font-size: .82rem; white-space: nowrap; }
+    .today-when .day-weather { margin-left: 8px; }
+    .session-weather { font-size: .85rem; color: var(--accent); margin-top: 4px; }
+    .partner-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: .85rem; color: var(--muted);
+      padding: 8px 10px; margin: 2px 0 6px 40px; background: var(--bg); border-radius: 10px; }
+    .partner-line b { color: var(--fg); font-weight: 600; }
+    .pl-item { display: inline-flex; align-items: center; gap: 6px; }
+    .pl-item .sdot { width: 8px; height: 8px; }
+    .pl-item.done { text-decoration: line-through; }
 
     /* Bereiche und Leiste unten */
     body.has-tabs main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
@@ -516,6 +527,7 @@
             <span class="mini-cd" id="cd-mini" hidden></span>
           </div>
         </div>
+        <div id="partner-req"></div>
         <div id="claude-msgs"></div>
         <div class="card" id="today-card">
           <h2 id="today-title">Als Nächstes</h2>
@@ -671,6 +683,11 @@
             <div id="coach-body"></div>
           </details>
           <div class="meta" id="coach-meta"></div>
+        </div>
+
+        <div class="card" id="partner-card">
+          <h2>Trainingspartner</h2>
+          <div id="partner-body"></div>
         </div>
 
         <div class="card" id="pool-card" hidden>
@@ -906,6 +923,7 @@
   <script src="nachrichten.js"></script>
   <script src="training.js"></script>
   <script src="saison.js"></script>
+  <script src="partner.js"></script>
   <script>
     // Karte „Dein Schwimmbad“ im Bereich Ich
     const Bad = (() => {
@@ -1118,7 +1136,9 @@
       loadCoach();
       if (location.hash === "#woche") Woche.focusNext();
       Woche.render();
-      Plan.render().then(() => Plan.renderToday());
+      Promise.all([Partner.load(profiles), Wetter.load()])
+        .then(() => { Partner.renderRequest(); Partner.renderCard(); return Plan.render(); })
+        .then(() => Plan.renderToday());
       Fragen.render();
       Feedback.render();
       Nachrichten.render();
@@ -1177,6 +1197,7 @@
     // ---------- Heute ----------
     async function renderHeute() {
       Plan.renderToday();
+      Partner.load().then(() => Partner.renderRequest());
       Nachrichten.render();
       renderHints();
       renderPinPreview();
@@ -1384,7 +1405,7 @@
     function jumpToHash() {
       const map = {
         "#heute": ["heute", null], "#plan": ["plan", "plan-card"], "#saison": ["plan", "season-card"], "#setup": ["plan", "setup-card"], "#woche": ["plan", "week-card"], "#fragen": ["plan", "fragen-card"],
-        "#pinnwand": ["familie", "pinnwand"], "#einschaetzung": ["ich", "coach-card"], "#feedback": ["ich", "admin-feedback"]
+        "#pinnwand": ["familie", "pinnwand"], "#einschaetzung": ["ich", "coach-card"], "#feedback": ["ich", "admin-feedback"], "#partner": ["heute", "partner-req"]
       };
       const t = map[location.hash];
       if (!t) return;

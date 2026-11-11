@@ -48,7 +48,8 @@ const Plan = (() => {
     if (error) { $("plan-body").textContent = translate(error); return; }
     plans = data || [];
     if (idx >= plans.length) idx = 0;
-    await Promise.all([pendingWeeks(), Ergebnis.loadFor(plans.map((p) => p.week_start))]);
+    await Promise.all([pendingWeeks(), Ergebnis.loadFor(plans.map((p) => p.week_start)),
+      typeof Partner !== "undefined" ? Partner.loadPlans(plans.map((p) => p.week_start)) : null]);
     draw();
   }
 
@@ -103,13 +104,20 @@ const Plan = (() => {
       $("plan-progress-bar").style.width = (required.length ? Math.round(n / required.length * 100) : 0) + "%";
     };
 
+    const partner = typeof Partner !== "undefined" ? Partner.get() : null;
+    const pplan = partner ? Partner.planFor(plan.week_start) : null;
     DAYS.forEach((day) => {
       const list = sessions.filter((s) => s.day === day);
-      if (!list.length) return;
+      const plist = pplan && Array.isArray(pplan.sessions) ? pplan.sessions.filter((s) => s.day === day) : [];
+      if (!list.length && !plist.length) return;
       const date = dayDate(plan.week_start, day);
       const h = document.createElement("div");
       h.className = "plan-day" + (isToday(date) ? " today" : "");
-      h.textContent = date.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "short" }) + (isToday(date) ? " · heute" : "");
+      const ht = document.createElement("span");
+      ht.textContent = date.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "short" }) + (isToday(date) ? " · heute" : "");
+      h.append(ht);
+      const wl = typeof Wetter !== "undefined" ? Wetter.label(iso(date)) : "";
+      if (wl) { const w = document.createElement("span"); w.className = "day-weather"; w.textContent = wl; h.append(w); }
       body.append(h);
 
       list.forEach((s) => {
@@ -155,10 +163,16 @@ const Plan = (() => {
           o.className = "pill opt-pill"; o.textContent = "optional";
           title.append(o);
         }
+        if (s.together) title.append(togetherPill(partner));
         const meta = document.createElement("div");
         meta.className = "session-meta";
         meta.textContent = [sp.label, s.duration_min ? s.duration_min + " Min." : null, s.intensity].filter(Boolean).join(" · ");
         sum.append(title, meta);
+        if (s.weather_note) {
+          const wn = document.createElement("div");
+          wn.className = "session-weather"; wn.textContent = "☔ " + s.weather_note;
+          sum.append(wn);
+        }
         const res = Ergebnis.get(plan.week_start, s.id);
         if (res && Ergebnis.summary(s, res)) {
           const rl = document.createElement("div");
@@ -180,8 +194,33 @@ const Plan = (() => {
         item.append(check, main);
         body.append(item);
       });
+      if (plist.length) body.append(partnerLine(partner, plist, new Set(pplan.done || [])));
     });
     updateProgress();
+  }
+
+  function togetherPill(partner) {
+    const t = document.createElement("span");
+    t.className = "pill together-pill";
+    t.textContent = "👫 " + (partner ? "mit " + partner.name : "zusammen");
+    return t;
+  }
+
+  // Kompakte Zeile: was der Trainingspartner an diesem Tag macht
+  function partnerLine(partner, list, done) {
+    const row = document.createElement("div");
+    row.className = "partner-line";
+    const who = document.createElement("b"); who.textContent = partner.name + ":";
+    row.append(who);
+    list.forEach((s) => {
+      const sp = SPORT[s.sport] || SPORT.other;
+      const it = document.createElement("span"); it.className = "pl-item" + (done.has(s.id) ? " done" : "");
+      const dot = document.createElement("span"); dot.className = "sdot"; dot.style.background = sp.color;
+      it.append(dot, document.createTextNode([sp.label, s.duration_min ? s.duration_min + " Min." : null].filter(Boolean).join(" ")
+        + (s.together ? " 👫" : "") + (s.optional ? " (optional)" : "") + (done.has(s.id) ? " ✓" : "")));
+      row.append(it);
+    });
+    return row;
   }
 
   // ---------- „Als Nächstes“ im Bereich Heute ----------
@@ -286,13 +325,21 @@ const Plan = (() => {
       title.textContent = isTod ? "Heute" : "Als Nächstes";
       const when = document.createElement("div"); when.className = "today-when";
       when.textContent = nx.d.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "short" });
+      const wl = typeof Wetter !== "undefined" ? Wetter.label(iso(nx.d)) : "";
+      if (wl) { const w = document.createElement("span"); w.className = "day-weather"; w.textContent = wl; when.append(w); }
       const item = document.createElement("div"); item.className = "today-item";
       const dot = document.createElement("span"); dot.className = "sdot"; dot.style.background = sp.color;
       const txt = document.createElement("div");
       const t = document.createElement("div"); t.className = "t"; t.textContent = nx.s.title;
+      const partner = typeof Partner !== "undefined" ? Partner.get() : null;
+      if (nx.s.together) { t.append(" "); t.append(togetherPill(partner)); }
       const m = document.createElement("div"); m.className = "m";
       m.textContent = [sp.label, nx.s.duration_min ? nx.s.duration_min + " Min." : null, nx.s.intensity].filter(Boolean).join(" · ");
       txt.append(t, m);
+      if (nx.s.weather_note) {
+        const wn = document.createElement("div"); wn.className = "session-weather"; wn.textContent = "☔ " + nx.s.weather_note;
+        txt.append(wn);
+      }
       if (Array.isArray(nx.s.details) && nx.s.details.length) {
         const ul = document.createElement("ul"); ul.style.margin = "8px 0 0"; ul.style.paddingLeft = "18px";
         nx.s.details.forEach((d) => { const li = document.createElement("li"); li.textContent = d; li.style.margin = "3px 0"; ul.append(li); });
