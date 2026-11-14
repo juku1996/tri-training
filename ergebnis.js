@@ -179,6 +179,7 @@ const Ergebnis = (() => {
     const cb = ctx.onSaved;
     close();
     if (typeof Bilanz !== "undefined") Bilanz.render();
+    Uebungen.refresh();
     if (cb) cb();
   }
 

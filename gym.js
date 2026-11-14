@@ -16,23 +16,6 @@ const Gym = (() => {
   const fmtKg = (v) => v == null || v === "" ? "" : String(v).replace(".", ",");
   const todayIso = () => { const d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); };
 
-  // Letzte Werte je Übung (eigene Daten): Name → { reps, kg, sets }
-  async function lastByName() {
-    const map = {};
-    const [w, r] = await Promise.all([
-      db.from("workouts").select("exercises, updated_at").eq("user_id", me.id).not("exercises", "is", null).order("updated_at", { ascending: false }).limit(20),
-      db.from("session_results").select("values, updated_at").eq("user_id", me.id).not("values->exercises", "is", null).order("updated_at", { ascending: false }).limit(20)
-    ]);
-    const rows = [...(w.data || []).map((x) => ({ t: x.updated_at, ex: x.exercises })),
-                  ...(r.data || []).map((x) => ({ t: x.updated_at, ex: x.values && x.values.exercises }))]
-      .filter((x) => Array.isArray(x.ex)).sort((a, b) => new Date(b.t) - new Date(a.t));
-    rows.forEach((x) => x.ex.forEach((e) => {
-      const k = (e.name || "").trim().toLowerCase();
-      if (k && !map[k]) map[k] = e;
-    }));
-    return { map, lastList: rows.length ? rows[0].ex : [] };
-  }
-
   function makeSets(n, reps, kg) {
     return Array.from({ length: Math.max(1, Math.min(10, n || 3)) }, () => ({ reps: reps != null ? reps : "", kg: kg != null ? kg : "", done: false }));
   }
@@ -40,11 +23,14 @@ const Gym = (() => {
   // ---------- Start ----------
   async function start(ctx) {
     if (load() && !confirm("Es läuft schon ein Training. Verwerfen und neu starten?")) { resume(); return; }
-    const { map, lastList } = await lastByName();
-    let src = ctx.session && Array.isArray(ctx.session.exercises) && ctx.session.exercises.length ? ctx.session.exercises : lastList;
-    const exercises = (src || []).map((e) => {
-      const prev = map[(e.name || "").trim().toLowerCase()];
-      return { name: e.name, hint: prev ? "Letztes Mal: " + Uebungen.line(prev) : "", sets: makeSets(e.sets || (prev && prev.sets), e.reps || (prev && prev.reps), prev ? prev.kg : null) };
+    const { map } = await Uebungen.history(true);
+    // Geplante Einheit: genau deren Übungen. Freies Training: leer, Übungen wählt man selbst.
+    const src = ctx.session ? Uebungen.forSession(ctx.session) : [];
+    const exercises = src.map((e) => {
+      const prev = map[Uebungen.keyOf(e.name)];
+      const plan = e.sets && e.reps ? "Plan: " + e.sets + "×" + e.reps : (e.sets ? "Plan: " + e.sets + (e.sets === 1 ? " Satz" : " Sätze") : "");
+      const hint = [plan, prev ? "Letztes Mal: " + Uebungen.line(prev).slice(prev.name.length + 1) : ""].filter(Boolean).join(" · ");
+      return { name: e.name, hint, sets: makeSets(e.sets || (prev && prev.sets), e.reps != null ? e.reps : (prev && prev.reps), prev ? prev.kg : null) };
     });
     st = {
       ctx: ctx.session ? { kind: "plan", week_start: ctx.week_start, session_id: ctx.session.id } : { kind: "free" },
@@ -61,7 +47,6 @@ const Gym = (() => {
 
   // ---------- Ansicht ----------
   function open() {
-    Uebungen.names(st.exercises.map((e) => e.name).filter(Boolean));
     $("gym-live").hidden = false;
     document.body.classList.add("gym-open");
     $("gym-title").textContent = st.title;
@@ -108,10 +93,12 @@ const Gym = (() => {
     st.exercises.forEach((ex, ei) => {
       const card = document.createElement("div"); card.className = "gym-ex";
       const head = document.createElement("div"); head.className = "gym-ex-head";
-      const name = document.createElement("input"); name.type = "text"; name.className = "gym-name";
-      name.value = ex.name || ""; name.placeholder = "Übung, z. B. Kniebeuge"; name.setAttribute("list", "ex-names"); name.maxLength = 60;
-      name.setAttribute("aria-label", "Name der Übung");
-      name.addEventListener("change", () => { ex.name = name.value.trim(); persist(); });
+      const name = Uebungen.nameField(ex.name, (prev) => {
+        ex.name = prev.name;
+        ex.hint = "Letztes Mal: " + Uebungen.line(prev).slice(prev.name.length + 1);
+        if (!ex.sets.some((s) => s.done)) ex.sets = makeSets(prev.sets, prev.reps, prev.kg);
+        persist(); draw();
+      }, (txt) => { ex.name = txt; persist(); }, "gym-name");
       const del = document.createElement("button"); del.type = "button"; del.className = "ex-del"; del.textContent = "×";
       del.setAttribute("aria-label", "Übung entfernen");
       del.addEventListener("click", () => {
@@ -161,7 +148,7 @@ const Gym = (() => {
     const addEx = document.createElement("button"); addEx.type = "button"; addEx.className = "secondary"; addEx.textContent = "＋ Übung";
     addEx.addEventListener("click", () => {
       st.exercises.push({ name: "", hint: "", sets: makeSets(3) }); persist(); draw();
-      const inputs = box.querySelectorAll(".gym-name"); inputs[inputs.length - 1].focus();
+      const cards = box.querySelectorAll(".gym-ex"); cards[cards.length - 1].scrollIntoView({ behavior: "smooth", block: "center" });
     });
     box.append(addEx);
     $("gym-rest-len").textContent = fmt(st.rest);
@@ -233,6 +220,7 @@ const Gym = (() => {
     $("gym-fin").hidden = true;
     st = null; restEnd = null; persist();
     hide();
+    Uebungen.refresh();
     if (typeof Plan !== "undefined") Plan.render().then(() => Plan.renderToday());
     if (typeof Training !== "undefined") Training.render();
     if (typeof Bilanz !== "undefined") Bilanz.render();

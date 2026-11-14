@@ -232,6 +232,7 @@ const Training = (() => {
     render();
     if (typeof Plan !== "undefined") Plan.renderToday();
     if (typeof Bilanz !== "undefined") Bilanz.render();
+    Uebungen.refresh();
   }
 
   async function remove() {
