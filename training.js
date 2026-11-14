@@ -6,7 +6,7 @@ const Training = (() => {
     { id: "swim", label: "Schwimmen", icon: "🏊", color: "var(--swim)", dist: "m", maxKmh: 7 },
     { id: "bike", label: "Rad", icon: "🚴", color: "var(--bike)", dist: "km", elev: true, maxKmh: 60 },
     { id: "run", label: "Laufen", icon: "🏃", color: "var(--run)", dist: "km", elev: true, maxKmh: 25 },
-    { id: "strength", label: "Kraft", icon: "💪", color: "#8b6fd6", dist: null },
+    { id: "strength", label: "Kraft & Gym", icon: "🏋️", color: "#8b6fd6", dist: null },
     { id: "football", label: "Fußball", icon: "⚽", color: "#4a9a5a", dist: "km" },
     { id: "yoga", label: "Yoga", icon: "🧘", color: "#c77dba", dist: null },
     { id: "hike", label: "Wandern", icon: "🥾", color: "#9a7b4f", dist: "km", elev: true, maxKmh: 12 },
@@ -18,6 +18,7 @@ const Training = (() => {
   let list = [];
   let editing = null;        // bestehender Eintrag oder null
   let form = {};
+  let exEditor = null;
 
   const pad = (n) => String(n).padStart(2, "0");
   const iso = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
@@ -61,7 +62,7 @@ const Training = (() => {
     if (!me) return;
     const since = shift(-28);
     const { data, error } = await db.from("workouts")
-      .select("id, day, sport, title, status, duration_min, distance_km, elevation_m, calories, avg_hr, feeling, note")
+      .select("id, day, sport, title, status, duration_min, distance_km, elevation_m, calories, avg_hr, feeling, note, exercises")
       .eq("user_id", me.id).gte("day", since)
       .order("day", { ascending: false }).order("id", { ascending: false }).limit(40);
     const box = $("workout-list");
@@ -100,7 +101,8 @@ const Training = (() => {
     const txt = document.createElement("span"); txt.className = "w-text";
     const t = document.createElement("b"); t.textContent = w.title || sp.label;
     const m = document.createElement("span"); m.className = "w-meta";
-    m.textContent = [dayLabel(w.day), fmtDur(w.duration_min), fmtDist(w), w.elevation_m ? w.elevation_m + " hm" : null, pace(w), w.calories ? w.calories + " kcal" : null].filter(Boolean).join(" · ");
+    m.textContent = [dayLabel(w.day), fmtDur(w.duration_min), fmtDist(w), w.elevation_m ? w.elevation_m + " hm" : null, pace(w), w.calories ? w.calories + " kcal" : null,
+      Array.isArray(w.exercises) && w.exercises.length ? w.exercises.length + (w.exercises.length === 1 ? " Übung" : " Übungen") : null].filter(Boolean).join(" · ");
     txt.append(t, m);
     el.append(ic, txt);
     if (w.status === "geplant") {
@@ -113,6 +115,7 @@ const Training = (() => {
   // ---------- Formular ----------
   function open(w, presetSport) {
     editing = w || null;
+    exEditor = null; $("wk-ex").innerHTML = "";
     form = w ? { ...w } : { sport: presetSport || "swim", day: todayIso(), status: "erledigt" };
     if (form.sport === "swim" && form.distance_km != null) form.distance_m = Math.round(form.distance_km * 1000);
     $("wk-title-h").textContent = editing ? "Training bearbeiten" : "Training eintragen";
@@ -140,6 +143,9 @@ const Training = (() => {
     $("wk-dist-unit").textContent = sp.dist === "m" ? "m" : "km";
     $("wk-dist").placeholder = sp.dist === "m" ? "z. B. 1500" : "z. B. 8,5";
     $("wk-elev-field").hidden = !sp.elev;
+    const strength = form.sport === "strength";
+    $("wk-ex-field").hidden = !strength;
+    if (strength && !exEditor) exEditor = Uebungen.mount($("wk-ex"), form.exercises);
   }
   function drawDays() {
     const box = $("wk-days"); box.innerHTML = "";
@@ -200,6 +206,12 @@ const Training = (() => {
       return fail("Das wären " + Math.round(dist / (dur / 60)) + " km/h. Stimmt die Dauer? Für Stunden bitte h:mm eingeben, z. B. 1:25.");
     }
     if (!future && !dur) return fail("Bitte trag noch ein, wie lange du trainiert hast.");
+    let exercises = null;
+    if (form.sport === "strength" && exEditor && !future) {
+      const ex = exEditor.get();
+      if (ex.error) return fail(ex.error);
+      exercises = ex.list.length ? ex.list : null;
+    }
 
     const row = {
       user_id: me.id, day: form.day, sport: form.sport,
@@ -208,7 +220,8 @@ const Training = (() => {
       duration_min: dur, distance_km: dist, calories: kcal != null ? Math.round(kcal) : null,
       avg_hr: hr != null ? Math.round(hr) : null, feeling: form.feeling || null,
       elevation_m: elev != null ? Math.round(elev) : null,
-      note: $("wk-note").value.trim() || null
+      note: $("wk-note").value.trim() || null,
+      exercises
     };
     const btn = $("wk-save"); btn.disabled = true;
     const q = editing ? db.from("workouts").update(row).eq("id", editing.id) : db.from("workouts").insert(row);

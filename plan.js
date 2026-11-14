@@ -179,7 +179,7 @@ const Plan = (() => {
           rl.className = "session-res"; rl.textContent = Ergebnis.summary(s, res);
           sum.append(rl);
         }
-        if ((Array.isArray(s.details) && s.details.length) || s.tip) sum.className = "has-details";
+        if ((Array.isArray(s.details) && s.details.length) || s.tip || done.has(s.id)) sum.className = "has-details";
         main.append(sum);
         if (Array.isArray(s.details) && s.details.length) {
           const ul = document.createElement("ul");
@@ -190,6 +190,17 @@ const Plan = (() => {
           const tip = document.createElement("p");
           tip.className = "session-tip"; tip.textContent = s.tip;
           main.append(tip);
+        }
+        if (res && Array.isArray(res.values && res.values.exercises) && res.values.exercises.length) {
+          const ul = document.createElement("ul"); ul.className = "ex-list";
+          res.values.exercises.forEach((e) => { const li = document.createElement("li"); li.textContent = Uebungen.line(e); ul.append(li); });
+          main.append(ul);
+        }
+        if (done.has(s.id)) {
+          const eb = document.createElement("button"); eb.type = "button"; eb.className = "ghost res-edit";
+          eb.textContent = res ? "Werte bearbeiten" : "Werte eintragen";
+          eb.addEventListener("click", () => Ergebnis.open(plan, s, () => draw()));
+          main.append(eb);
         }
         item.append(check, main);
         body.append(item);

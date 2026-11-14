@@ -364,6 +364,21 @@
     #wk-day { margin-top: 8px; }
     .wk-row-btns { display: flex; gap: 10px; margin-top: 6px; }
     .wk-row-btns button { flex: 1; }
+    /* Übungen (Kraft & Gym) */
+    .ex-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) 30px; gap: 6px 8px; align-items: center;
+      padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .ex-row .ex-name { grid-column: 1 / 4; }
+    .ex-row input { padding: 9px 8px; font-size: 16px; min-width: 0; }
+    .ex-cell { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: .82rem; color: var(--muted); }
+    .ex-cell input { flex: 1; text-align: center; }
+    .ex-del { width: 30px; height: 30px; padding: 0; border-radius: 50%; background: transparent; color: var(--muted); font-size: 1.2rem; line-height: 1; font-weight: 400; }
+    .ex-btns { display: flex; gap: 8px; margin: 10px 0 14px; }
+    .ex-btns button { flex: 1; padding: 9px 10px; font-size: .9rem; }
+    .ex-msg:empty { display: none; }
+    .ex-msg { margin-top: 6px; }
+    .res-h { font-size: .8rem; font-weight: 650; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 14px 0 8px; }
+    .ex-list { color: var(--muted); }
+    .res-edit { width: auto; padding: 6px 0; margin-top: 6px; font-size: .9rem; }
     .pool-picker .chip { padding: 8px 12px; font-size: .9rem; }
     .pool-add { display: grid; gap: 8px; margin-top: 10px; }
     .pool-info { margin-top: 10px; }
@@ -830,6 +845,10 @@
             <div class="input-unit"><input id="wk-elev" type="text" inputmode="numeric" placeholder="z. B. 350"><span class="unit">hm</span></div>
           </div>
         </div>
+        <div class="field q" id="wk-ex-field" hidden>
+          <label>Übungen <span class="opt">(optional)</span></label>
+          <div id="wk-ex"></div>
+        </div>
         <div class="field q">
           <label id="wk-feeling-label">Wie hat es sich angefühlt? <span class="opt">(optional)</span></label>
           <div class="chips scale" id="wk-feeling" role="radiogroup" aria-labelledby="wk-feeling-label">
@@ -924,6 +943,7 @@
   <script src="training.js"></script>
   <script src="saison.js"></script>
   <script src="partner.js"></script>
+  <script src="uebungen.js"></script>
   <script>
     // Karte „Dein Schwimmbad“ im Bereich Ich
     const Bad = (() => {
