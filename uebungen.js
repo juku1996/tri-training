@@ -106,5 +106,5 @@ const Uebungen = (() => {
     return [e.name, sr, e.kg != null ? fmtKg(e.kg) + " kg" : null].filter(Boolean).join(" ");
   }
 
-  return { mount, line };
+  return { mount, line, names: ensureDatalist };
 })();

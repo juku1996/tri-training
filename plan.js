@@ -196,6 +196,13 @@ const Plan = (() => {
           res.values.exercises.forEach((e) => { const li = document.createElement("li"); li.textContent = Uebungen.line(e); ul.append(li); });
           main.append(ul);
         }
+        if (s.sport === "strength" && !done.has(s.id)) {
+          const lb = document.createElement("button"); lb.type = "button"; lb.className = "secondary res-edit gym-go";
+          lb.textContent = "▶ Live mitschreiben";
+          lb.addEventListener("click", () => Gym.start({ week_start: plan.week_start, session: s }));
+          main.append(lb);
+          if (!sum.className) sum.className = "has-details";
+        }
         if (done.has(s.id)) {
           const eb = document.createElement("button"); eb.type = "button"; eb.className = "ghost res-edit";
           eb.textContent = res ? "Werte bearbeiten" : "Werte eintragen";
@@ -369,6 +376,12 @@ const Plan = (() => {
         draw(); renderToday();
         Ergebnis.open(nx.plan, nx.s, () => draw());
       });
+      if (nx.s.sport === "strength") {
+        const live = document.createElement("button"); live.type = "button"; live.textContent = "▶ Live starten";
+        live.addEventListener("click", () => Gym.start({ week_start: nx.plan.week_start, session: nx.s }));
+        doneBtn.className = "secondary";
+        actions.append(live);
+      }
       actions.append(doneBtn);
     }
     const all = document.createElement("button"); all.type = "button"; all.className = "secondary"; all.textContent = "Ganzer Plan";

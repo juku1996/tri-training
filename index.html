@@ -17,6 +17,7 @@
       --accent-soft: #e2f0f7; --card: #ffffff; --line: rgba(20, 32, 43, .12);
       --error: #b42318; --ok: #1a7f37;
       --swim: #2b8fd6; --hero: #0b6e99; --on-accent: #ffffff; --bike: #e0892b; --run: #2fa36b;
+      --c-swim: #2b8fd6; --c-bike: #e0892b; --c-strength: #8b6fd6; --c-run: #2fa36b; --c-other: #a3adb8;
     }
     @media (prefers-color-scheme: dark) {
       :root {
@@ -24,6 +25,7 @@
         --accent-soft: #15303f; --card: #19212a; --line: rgba(230, 237, 243, .12);
         --error: #ff7b72; --ok: #56d364;
         --hero: #0e5878; --on-accent: #08202c;
+        --c-bike: #cf7b1f; --c-other: #66727e;
       }
     }
     * { box-sizing: border-box; }
@@ -379,6 +381,76 @@
     .res-h { font-size: .8rem; font-weight: 650; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 14px 0 8px; }
     .ex-list { color: var(--muted); }
     .res-edit { width: auto; padding: 6px 0; margin-top: 6px; font-size: .9rem; }
+    /* Heute: zwei Knöpfe nebeneinander */
+    .add-row { display: flex; gap: 10px; margin-bottom: 16px; }
+    .add-row .add-btn { flex: 1; padding-left: 8px; padding-right: 8px; }
+    .gym-go { color: var(--accent); }
+    /* Gym live */
+    .gym-live { position: fixed; inset: 0; z-index: 45; background: var(--bg); display: flex; flex-direction: column; }
+    body.gym-open { overflow: hidden; }
+    body.gym-open .tabbar { display: none; }
+    .gym-top { display: flex; align-items: center; gap: 8px; padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+      background: var(--card); border-bottom: 1px solid var(--line); }
+    .gym-top .ghost { width: auto; padding: 8px 4px; }
+    .gym-top #gym-finish { width: auto; padding: 10px 18px; }
+    .gym-top-mid { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .gym-top-mid b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+    .gym-top-mid > span { font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .gym-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px 16px 120px; }
+    #gym-body { max-width: 560px; margin: 0 auto; }
+    .gym-ex { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 12px; margin-bottom: 12px; }
+    .gym-ex-head { display: flex; gap: 8px; align-items: center; }
+    .gym-name { flex: 1; font-weight: 650; font-size: 16px; }
+    .gym-hint { margin: 6px 2px 2px; font-size: .85rem; }
+    .gym-set { display: grid; grid-template-columns: 22px minmax(0, 1fr) 22px minmax(0, 1fr) 34px 34px; gap: 8px; align-items: center; padding: 8px 0 0; }
+    .gym-set input { text-align: center; padding: 10px 4px; font-size: 16px; min-width: 0; }
+    .gym-set.done input { opacity: .65; }
+    .gym-n { font-weight: 650; color: var(--muted); text-align: center; }
+    .gym-u { font-size: .8rem; color: var(--muted); }
+    .gym-set .check { width: 34px; height: 34px; }
+    .gym-set .check[aria-pressed="true"]::after { left: 11px; top: 5px; }
+    .gym-addset { width: auto; padding: 8px 2px 0; font-size: .9rem; }
+    .gym-restset { max-width: 560px; margin: 14px auto 0; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: .9rem; color: var(--muted); flex-wrap: wrap; }
+    .gym-restset b { color: var(--fg); font-variant-numeric: tabular-nums; }
+    .gym-restset .chip { padding: 6px 10px; font-size: .85rem; }
+    .gym-rest { position: absolute; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); max-width: 528px; margin: 0 auto;
+      background: var(--accent); color: var(--on-accent); border-radius: 16px; padding: 14px 16px; overflow: hidden;
+      display: flex; align-items: center; justify-content: space-between; font-weight: 650; font-size: 1.1rem; font-variant-numeric: tabular-nums;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .2); }
+    .gym-rest[hidden] { display: none; }
+    .gym-rest-fill { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(255, 255, 255, .18); transition: width .5s linear; }
+    .gym-rest span, .gym-rest button { position: relative; }
+    .gym-rest button { width: auto; padding: 4px 0; color: inherit; font-size: .9rem; }
+    .gym-rest.over { background: var(--ok); }
+    .gym-live .sheet-backdrop { z-index: 60; }
+    /* Bilanz */
+    #bilanz-range { margin: 4px 0 12px; }
+    #bilanz-range .chip { padding: 7px 12px; font-size: .88rem; }
+    .bz-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .bz-tile { background: var(--bg); border-radius: 14px; padding: 10px 12px; display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; }
+    .bz-icon { grid-row: span 2; font-size: 1.3rem; }
+    .bz-tile b { font-size: 1.15rem; font-variant-numeric: tabular-nums; line-height: 1.2; }
+    .bz-tile b small { font-size: .78rem; font-weight: 500; color: var(--muted); }
+    .bz-label { font-size: .8rem; color: var(--muted); }
+    .bz-note { font-size: .8rem; margin: 8px 0 0; }
+    .bz-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .8rem; color: var(--muted); margin-bottom: 8px; }
+    .bz-legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .bz-legend .sdot, .bz-tip .sdot { width: 8px; height: 8px; }
+    .bz-chart { display: flex; gap: 6px; height: 160px; align-items: stretch; }
+    .bz-col { flex: 1; display: flex; flex-direction: column; min-width: 0; cursor: pointer; outline: none; border-radius: 6px; }
+    .bz-col.sel, .bz-col:focus-visible { background: var(--accent-soft); }
+    .bz-bar { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; padding: 0 3px; border-bottom: 1px solid var(--line); min-height: 0; }
+    .bz-stack { display: flex; flex-direction: column-reverse; gap: 2px; min-height: 0; }
+    .bz-seg { display: block; min-height: 2px; flex-basis: 0; }
+    .bz-stack .bz-seg:last-child { border-radius: 4px 4px 0 0; }
+    .bz-val { font-size: .7rem; color: var(--muted); text-align: center; margin-bottom: 2px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .bz-x { font-size: .7rem; color: var(--muted); text-align: center; padding-top: 4px; white-space: nowrap; }
+    .bz-col.now .bz-x { color: var(--accent); font-weight: 650; }
+    .bz-tip { margin-top: 10px; font-size: .85rem; background: var(--bg); border-radius: 12px; padding: 8px 10px; }
+    .bz-tip div { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
+    .bz-bests { list-style: none; margin: 0; padding: 0; }
+    .bz-bests li { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); align-items: baseline; }
+    .bz-bests li:first-child { border-top: 0; }
     .pool-picker .chip { padding: 8px 12px; font-size: .9rem; }
     .pool-add { display: grid; gap: 8px; margin-top: 10px; }
     .pool-info { margin-top: 10px; }
@@ -548,7 +620,11 @@
           <h2 id="today-title">Als Nächstes</h2>
           <div id="today-body"></div>
         </div>
-        <button type="button" class="secondary add-btn" data-add-workout style="margin-bottom:16px">＋ Training eintragen</button>
+        <div id="gym-banner"></div>
+        <div class="add-row">
+          <button type="button" class="secondary add-btn" data-add-workout>＋ Training eintragen</button>
+          <button type="button" class="secondary add-btn" data-gym-start>🏋️ Gym live</button>
+        </div>
         <div id="hints"></div>
         <div class="card" id="heute-pin" hidden>
           <div class="plan-head"><h2>Neu auf der Pinnwand</h2></div>
@@ -686,6 +762,16 @@
 
       <!-- ICH -->
       <div class="tab" id="tab-ich" hidden>
+        <div class="card" id="bilanz-card">
+          <div class="plan-head"><h2>Deine Bilanz</h2></div>
+          <div class="chips" id="bilanz-range" role="radiogroup" aria-label="Zeitraum">
+            <button type="button" class="chip" data-v="week">Woche</button>
+            <button type="button" class="chip" data-v="month">Monat</button>
+            <button type="button" class="chip" data-v="all">Gesamt</button>
+          </div>
+          <div id="bilanz-body"></div>
+        </div>
+
         <div class="card coach" id="coach-card" hidden>
           <h2>Deine Einschätzung</h2>
           <p class="lead" id="coach-summary"></p>
@@ -875,6 +961,50 @@
   </div>
 
   <!-- Wie war's? Kennwerte nach dem Abhaken -->
+  <!-- Gym live -->
+  <div class="gym-live" id="gym-live" role="dialog" aria-modal="true" aria-labelledby="gym-title" hidden>
+    <div class="gym-top">
+      <button type="button" class="ghost" id="gym-min" aria-label="Minimieren, Training läuft weiter">‹ Zurück</button>
+      <div class="gym-top-mid"><b id="gym-title"></b><span><span id="gym-clock">0:00</span> · <span id="gym-count">0 Sätze</span></span></div>
+      <button type="button" id="gym-finish">Fertig</button>
+    </div>
+    <div class="gym-scroll"><div id="gym-body"></div>
+      <div class="gym-restset">Pause nach jedem Satz:
+        <button type="button" class="chip" id="gym-rest-minus" aria-label="Pause 15 Sekunden kürzer">−15 s</button>
+        <b id="gym-rest-len">1:30</b>
+        <button type="button" class="chip" id="gym-rest-plus" aria-label="Pause 15 Sekunden länger">+15 s</button>
+      </div>
+    </div>
+    <div class="gym-rest" id="gym-rest" hidden role="status">
+      <div class="gym-rest-fill" id="gym-rest-fill"></div>
+      <span id="gym-rest-time"></span>
+      <button type="button" class="ghost" id="gym-rest-skip">Überspringen</button>
+    </div>
+    <div class="sheet-backdrop" id="gym-fin" hidden>
+      <div class="sheet">
+        <h2>Training beenden</h2>
+        <p id="gym-fin-sum"></p>
+        <div class="wk-grid">
+          <div class="field q"><label for="gym-fin-dur">Dauer</label><div class="input-unit"><input id="gym-fin-dur" type="text" inputmode="numeric"><span class="unit">Min.</span></div></div>
+          <div class="field q"><label for="gym-fin-kcal">Kalorien <span class="opt">(opt.)</span></label><div class="input-unit"><input id="gym-fin-kcal" type="text" inputmode="numeric" placeholder="z. B. 300"><span class="unit">kcal</span></div></div>
+        </div>
+        <div class="field q">
+          <label id="gym-fin-feeling-label">Wie hat es sich angefühlt? <span class="opt">(optional)</span></label>
+          <div class="chips scale" id="gym-fin-feeling" role="radiogroup" aria-labelledby="gym-fin-feeling-label">
+            <button type="button" class="chip" data-v="1">1</button><button type="button" class="chip" data-v="2">2</button><button type="button" class="chip" data-v="3">3</button><button type="button" class="chip" data-v="4">4</button><button type="button" class="chip" data-v="5">5</button>
+          </div>
+          <div class="scale-ends"><span>sehr schwer</span><span>locker</span></div>
+        </div>
+        <div class="msg" id="gym-fin-msg" role="status"></div>
+        <button type="button" id="gym-fin-save">Speichern</button>
+        <div class="wk-row-btns">
+          <button type="button" class="ghost" id="gym-fin-back">Weiter trainieren</button>
+          <button type="button" class="ghost" id="gym-fin-discard" style="color:var(--error)">Verwerfen</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="sheet-backdrop" id="res-sheet" role="dialog" aria-modal="true" aria-labelledby="res-title" hidden>
     <div class="sheet">
       <h2 id="res-title"></h2>
@@ -944,6 +1074,8 @@
   <script src="saison.js"></script>
   <script src="partner.js"></script>
   <script src="uebungen.js"></script>
+  <script src="gym.js"></script>
+  <script src="bilanz.js"></script>
   <script>
     // Karte „Dein Schwimmbad“ im Bereich Ich
     const Bad = (() => {
@@ -1164,6 +1296,8 @@
       Nachrichten.render();
       Training.render();
       Bad.render();
+      Bilanz.render();
+      renderGymBanner();
       Setup.render().then(() => { Saison.render(); Plan.renderToday(); Woche.render(); renderHints(); });
       $("season-race").textContent = me ? "bis " + new Date((me.race_date || "2027-07-18") + "T12:00").toLocaleDateString("de-DE", { day: "numeric", month: "short", year: "numeric" }) : "";
       renderHints();
@@ -1420,12 +1554,29 @@
     Training.bind();
     Bad.bind();
     Setup.bind();
+    Gym.bind();
+    Bilanz.bind();
+
+    // Läuft noch ein Gym-Training? Dann oben im Bereich Heute zum Fortsetzen anbieten.
+    function renderGymBanner() {
+      const box = $("gym-banner");
+      if (!box) return;
+      box.innerHTML = "";
+      if (!Gym.running()) return;
+      const c = document.createElement("div"); c.className = "card hint-card gym-banner";
+      const t = document.createElement("div"); t.className = "hint-text";
+      const b = document.createElement("b"); b.textContent = "🏋️ Training läuft";
+      t.append(b, document.createTextNode("Deine Sätze sind gespeichert."));
+      const x = document.createElement("button"); x.type = "button"; x.textContent = "Fortsetzen";
+      x.addEventListener("click", () => Gym.resume());
+      c.append(t, x); box.append(c);
+    }
 
     // Aus einer Benachrichtigung kommend direkt zur passenden Karte springen
     function jumpToHash() {
       const map = {
         "#heute": ["heute", null], "#plan": ["plan", "plan-card"], "#saison": ["plan", "season-card"], "#setup": ["plan", "setup-card"], "#woche": ["plan", "week-card"], "#fragen": ["plan", "fragen-card"],
-        "#pinnwand": ["familie", "pinnwand"], "#einschaetzung": ["ich", "coach-card"], "#feedback": ["ich", "admin-feedback"], "#partner": ["heute", "partner-req"]
+        "#pinnwand": ["familie", "pinnwand"], "#einschaetzung": ["ich", "coach-card"], "#feedback": ["ich", "admin-feedback"], "#partner": ["heute", "partner-req"], "#bilanz": ["ich", "bilanz-card"]
       };
       const t = map[location.hash];
       if (!t) return;
