@@ -178,6 +178,7 @@ const Ergebnis = (() => {
     results[keyOf(row.week_start, row.session_id)] = row;
     const cb = ctx.onSaved;
     close();
+    if (typeof Bilanz !== "undefined") Bilanz.render();
     if (cb) cb();
   }
 

@@ -231,6 +231,7 @@ const Training = (() => {
     close();
     render();
     if (typeof Plan !== "undefined") Plan.renderToday();
+    if (typeof Bilanz !== "undefined") Bilanz.render();
   }
 
   async function remove() {
@@ -238,6 +239,7 @@ const Training = (() => {
     const { error } = await db.from("workouts").delete().eq("id", editing.id);
     if (error) { $("wk-msg").textContent = translate(error); $("wk-msg").className = "msg error"; return; }
     close(); render();
+    if (typeof Bilanz !== "undefined") Bilanz.render();
   }
 
   function bind() {

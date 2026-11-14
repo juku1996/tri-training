@@ -1169,6 +1169,7 @@
         window.scrollTo(0, 0);
       }
       if (name === "heute" && me) renderHeute();
+      if (name === "ich" && me) Bilanz.render();
     }
     document.querySelectorAll("#tabbar button").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
     document.addEventListener("click", (e) => {

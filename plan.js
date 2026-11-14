@@ -146,6 +146,7 @@ const Plan = (() => {
           } else {
             plan.done = [...done];
             renderToday();
+            if (typeof Bilanz !== "undefined") Bilanz.render();
             if (!was) Ergebnis.open(plan, s, () => draw());
           }
         });
