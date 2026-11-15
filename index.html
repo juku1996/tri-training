@@ -379,6 +379,17 @@
     .ex-msg { margin-top: 6px; }
     .res-h { font-size: .8rem; font-weight: 650; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 14px 0 8px; }
     .ex-list { color: var(--muted); }
+    .ex-plan { margin: 8px 0 4px; }
+    .ex-plan-h { font-size: .75rem; font-weight: 650; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 10px 0 4px; }
+    .ex-plan ol { list-style: none; margin: 0; padding: 0; counter-reset: ex; }
+    .ex-plan li { counter-increment: ex; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; column-gap: 8px; align-items: baseline;
+      padding: 7px 0; border-top: 1px solid var(--line); }
+    .ex-plan li:first-child { border-top: 0; }
+    .ex-plan li::before { content: counter(ex); color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
+    .ex-plan-name { font-weight: 600; color: var(--fg); }
+    .ex-plan-sr { font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--fg); }
+    .ex-plan-last { grid-column: 2 / 4; font-size: .8rem; color: var(--muted); }
+    .ex-plan-last:empty { display: none; }
     .res-edit { width: auto; padding: 6px 0; margin-top: 6px; font-size: .9rem; }
     /* Heute: zwei Knöpfe nebeneinander */
     .add-row { display: flex; gap: 10px; margin-bottom: 16px; }

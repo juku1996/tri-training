@@ -167,7 +167,9 @@ const Plan = (() => {
         if (s.together) title.append(togetherPill(partner));
         const meta = document.createElement("div");
         meta.className = "session-meta";
-        meta.textContent = [sp.label, s.duration_min ? s.duration_min + " Min." : null, s.intensity].filter(Boolean).join(" · ");
+        const exPlan = s.sport === "strength" ? exTable(s) : null;
+        const exN = exPlan ? exPlan.querySelectorAll("li").length : 0;
+        meta.textContent = [sp.label, s.duration_min ? s.duration_min + " Min." : null, exN ? exN + " Übungen" : null, s.intensity].filter(Boolean).join(" · ");
         sum.append(title, meta);
         if (s.weather_note) {
           const wn = document.createElement("div");
@@ -180,9 +182,11 @@ const Plan = (() => {
           rl.className = "session-res"; rl.textContent = Ergebnis.summary(s, res);
           sum.append(rl);
         }
-        if ((Array.isArray(s.details) && s.details.length) || s.tip || done.has(s.id)) sum.className = "has-details";
+        if ((Array.isArray(s.details) && s.details.length) || s.tip || done.has(s.id) || exPlan) sum.className = "has-details";
         main.append(sum);
+        if (exPlan) main.append(exPlan);
         if (Array.isArray(s.details) && s.details.length) {
+          if (exPlan) { const hh = document.createElement("div"); hh.className = "ex-plan-h"; hh.textContent = "Hinweise"; main.append(hh); }
           const ul = document.createElement("ul");
           s.details.forEach((t) => { const li = document.createElement("li"); li.textContent = t; ul.append(li); });
           main.append(ul);
@@ -193,6 +197,8 @@ const Plan = (() => {
           main.append(tip);
         }
         if (res && Array.isArray(res.values && res.values.exercises) && res.values.exercises.length) {
+          const hh = document.createElement("div"); hh.className = "ex-plan-h"; hh.textContent = "Gemacht";
+          main.append(hh);
           const ul = document.createElement("ul"); ul.className = "ex-list";
           res.values.exercises.forEach((e) => { const li = document.createElement("li"); li.textContent = Uebungen.line(e); ul.append(li); });
           main.append(ul);
@@ -216,6 +222,30 @@ const Plan = (() => {
       if (plist.length) body.append(partnerLine(partner, plist, new Set(pplan.done || [])));
     });
     updateProgress();
+  }
+
+  // Klare Übungsliste einer Kraft-Einheit: Name, Sätze × Wdh., letztes Gewicht
+  function exTable(s) {
+    const list = typeof Uebungen !== "undefined" ? Uebungen.forSession(s) : [];
+    if (!list.length) return null;
+    const box = document.createElement("div"); box.className = "ex-plan";
+    const h = document.createElement("div"); h.className = "ex-plan-h"; h.textContent = "Übungen";
+    const ol = document.createElement("ol");
+    const lasts = [];
+    list.forEach((e) => {
+      const li = document.createElement("li");
+      const n = document.createElement("span"); n.className = "ex-plan-name"; n.textContent = e.name;
+      const sr = document.createElement("span"); sr.className = "ex-plan-sr";
+      sr.textContent = e.sets && e.reps ? e.sets + " × " + e.reps : (e.sets ? e.sets + (e.sets === 1 ? " Satz" : " Sätze") : "");
+      const last = document.createElement("span"); last.className = "ex-plan-last";
+      li.append(n, sr, last); ol.append(li); lasts.push([e, last]);
+    });
+    box.append(h, ol);
+    Uebungen.history().then((hist) => lasts.forEach(([e, el]) => {
+      const p = hist.map[Uebungen.keyOf(e.name)];
+      el.textContent = p && p.kg != null ? "zuletzt " + String(p.kg).replace(".", ",") + " kg" : (p ? "" : "neu");
+    }));
+    return box;
   }
 
   function togetherPill(partner) {
@@ -359,7 +389,9 @@ const Plan = (() => {
         const wn = document.createElement("div"); wn.className = "session-weather"; wn.textContent = "☔ " + nx.s.weather_note;
         txt.append(wn);
       }
-      if (Array.isArray(nx.s.details) && nx.s.details.length) {
+      const exToday = nx.s.sport === "strength" ? exTable(nx.s) : null;
+      if (exToday) txt.append(exToday);
+      else if (Array.isArray(nx.s.details) && nx.s.details.length) {
         const ul = document.createElement("ul"); ul.style.margin = "8px 0 0"; ul.style.paddingLeft = "18px";
         nx.s.details.forEach((d) => { const li = document.createElement("li"); li.textContent = d; li.style.margin = "3px 0"; ul.append(li); });
         txt.append(ul);
