@@ -249,9 +249,9 @@
     .plan-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
     .plan-head h2 { margin: 0; }
     #plan-range { font-size: .85rem; color: var(--muted); }
-    #plan-tabs { display: flex; gap: 6px; margin-top: 10px; }
+    #plan-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; margin-top: 10px; }
     #plan-tabs:empty { display: none; }
-    #plan-tabs .chip { flex: 1; text-align: center; }
+    #plan-tabs .chip { min-width: 0; padding: 8px 0; font-size: .82rem; letter-spacing: -.01em; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .plan-note { margin: 12px 0 4px; }
     .plan-prog { margin-top: 12px; }
     .plan-prog .hint { margin: 0; }

@@ -74,7 +74,10 @@ const Plan = (() => {
         const b = document.createElement("button");
         b.type = "button"; b.className = "chip";
         const d = parse(p.week_start), nextMon = new Date(parse(cur)); nextMon.setDate(nextMon.getDate() + 7);
-        b.textContent = p.week_start === cur ? "Diese Woche" : (p.week_start === iso(nextMon) ? "Nächste" : "ab " + d.toLocaleDateString("de-DE", { day: "numeric", month: "numeric" }));
+        const date = d.getDate() + "." + (d.getMonth() + 1) + ".";
+        const many = plans.length > 3;
+        b.textContent = p.week_start === cur ? (many ? "Jetzt" : "Diese Woche") : (many ? date : (p.week_start === iso(nextMon) ? "Nächste" : "ab " + date));
+        b.setAttribute("aria-label", "Woche ab " + date);
         b.setAttribute("aria-pressed", i === idx);
         b.addEventListener("click", () => { idx = i; draw(); });
         tabs.append(b);
