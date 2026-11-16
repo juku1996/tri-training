@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Tri-Training</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -29,7 +29,10 @@
       }
     }
     * { box-sizing: border-box; }
-    html { -webkit-text-size-adjust: 100%; }
+    html { -webkit-text-size-adjust: 100%; overflow-x: hidden; touch-action: pan-y; }
+    body { overflow-x: hidden; max-width: 100%; touch-action: pan-y; }
+    /* Kein Zoomen: Eingabefelder mind. 16px (sonst zoomt iOS beim Antippen) */
+    input, select, textarea { font-size: max(16px, 1em); }
     body {
       margin: 0;
       padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
@@ -324,6 +327,20 @@
     #heute-pin .ghost { padding-left: 0; margin-top: 6px; }
     .status-pill { font-size: .72rem; font-weight: 650; padding: 2px 8px; border-radius: 999px; background: var(--bg); color: var(--muted); }
     .status-pill.ok { background: var(--accent-soft); color: var(--ok); }
+    /* Frag Claude: Verlauf einklappbar */
+    .fq > summary { list-style: none; cursor: pointer; }
+    .fq > summary::-webkit-details-marker { display: none; }
+    .fq > summary .head { margin-bottom: 0; }
+    .fq > summary .fq-preview { display: block; color: var(--muted); font-size: .92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
+    .fq[open] > summary .fq-preview { display: none; }
+    .fq > summary .when::after { content: " ▾"; color: var(--muted); }
+    .fq[open] > summary .when::after { content: " ▴"; }
+    .fq .body { margin-top: 6px; }
+    .fragen-more { margin-top: 4px; border-top: 1px solid var(--line); }
+    .fragen-more > summary { list-style: none; cursor: pointer; padding: 12px 0; color: var(--accent); font-weight: 600; font-size: .95rem; }
+    .fragen-more > summary::-webkit-details-marker { display: none; }
+    .fragen-more[open] > summary .fm-closed, .fragen-more:not([open]) > summary .fm-open { display: none; }
+    .fragen-more .posts { margin-top: 0; }
     .answer { margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: var(--bg); white-space: pre-wrap; overflow-wrap: anywhere; }
     .answer-by { font-size: .78rem; font-weight: 650; color: var(--accent); margin-bottom: 2px; }
     #fragen-chips .chip, #feedback-kind .chip { padding: 7px 12px; font-size: .88rem; }
@@ -1573,6 +1590,7 @@
     Bad.bind();
     Setup.bind();
     Gym.bind();
+    ["gesturestart", "gesturechange"].forEach((ev) => document.addEventListener(ev, (e) => e.preventDefault(), { passive: false }));
     Bilanz.bind();
 
     // Läuft noch ein Gym-Training? Dann oben im Bereich Heute zum Fortsetzen anbieten.

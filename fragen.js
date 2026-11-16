@@ -27,8 +27,14 @@ const Fragen = (() => {
     const list = $("fragen-list");
     list.innerHTML = "";
     if (error) { $("fragen-msg").textContent = translate(error); $("fragen-msg").className = "msg error"; return; }
-    (data || []).forEach((r) => {
+    const rows = data || [];
+    // Neueste Frage aufgeklappt, ältere hinter „Ältere Fragen“ und jeweils eingeklappt
+    let olderUl = null;
+    rows.forEach((r, idx) => {
       const li = document.createElement("li");
+      const det = document.createElement("details"); det.className = "fq";
+      if (idx === 0) det.open = true;
+      const sum = document.createElement("summary");
       const head = document.createElement("div"); head.className = "head";
       const who = document.createElement("span"); who.className = "who"; who.textContent = "Du";
       const when = document.createElement("span"); when.className = "when"; when.textContent = fmt(r.created_at);
@@ -36,22 +42,39 @@ const Fragen = (() => {
       st.className = "status-pill" + (r.status === "beantwortet" ? " ok" : "");
       st.textContent = r.status === "beantwortet" ? "Beantwortet" : "Wartet auf Claude";
       head.append(who, when, st);
+      const prev = document.createElement("span"); prev.className = "fq-preview"; prev.textContent = r.question;
+      sum.append(head, prev);
       const q = document.createElement("div"); q.className = "body"; q.textContent = r.question;
-      li.append(head, q);
+      det.append(sum, q);
+      li.append(det);
       if (r.answer) {
         const a = document.createElement("div"); a.className = "answer";
         const by = document.createElement("div"); by.className = "answer-by";
         by.textContent = "Claude" + (r.plan_changed ? " · Plan angepasst" : "");
         a.append(by, document.createTextNode(r.answer));
-        li.append(a);
+        det.append(a);
         if (r.plan_changed) {
           const b = document.createElement("button");
           b.type = "button"; b.className = "ghost"; b.style.paddingLeft = "0"; b.textContent = "Zum Plan ›";
           b.dataset.goto = "plan"; b.dataset.scroll = "plan-card";
-          li.append(b);
+          det.append(b);
         }
       }
-      list.append(li);
+      if (idx === 0) { list.append(li); return; }
+      if (!olderUl) {
+        const more = document.createElement("details"); more.className = "fragen-more";
+        const ms = document.createElement("summary");
+        const n = rows.length - 1;
+        const c1 = document.createElement("span"); c1.className = "fm-closed"; c1.textContent = "Ältere Fragen anzeigen (" + n + ") ▾";
+        const c2 = document.createElement("span"); c2.className = "fm-open"; c2.textContent = "Ältere Fragen ausblenden ▴";
+        ms.append(c1, c2);
+        olderUl = document.createElement("ul"); olderUl.className = "posts";
+        more.append(ms, olderUl);
+        const holder = document.createElement("li"); holder.style.padding = "0"; holder.style.borderTop = "0";
+        holder.append(more);
+        list.append(holder);
+      }
+      olderUl.append(li);
     });
   }
 
