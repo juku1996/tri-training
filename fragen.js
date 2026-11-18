@@ -96,7 +96,7 @@ const Fragen = (() => {
     if (error) { m.textContent = translate(error); m.className = "msg error"; return; }
     text().value = "";
     $("fragen-count").textContent = "";
-    m.textContent = "Gesendet ✓ Claude schaut spätestens zur nächsten vollen Stunde (8–22 Uhr) nach. Du bekommst eine Benachrichtigung.";
+    m.textContent = "Gesendet ✓ Claude schaut spätestens zur nächsten vollen Stunde (8–23 Uhr) nach. Du bekommst eine Benachrichtigung.";
     m.className = "msg ok";
     render();
   }

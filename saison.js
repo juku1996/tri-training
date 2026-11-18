@@ -93,7 +93,7 @@ const Setup = (() => {
     saved = row;
     $("setup-badge").hidden = false;
     btn.textContent = "Änderungen speichern";
-    msg.textContent = "Gespeichert ✓ Claude erstellt bzw. aktualisiert deinen Saisonplan spätestens zur nächsten vollen Stunde (8–22 Uhr).";
+    msg.textContent = "Gespeichert ✓ Claude erstellt bzw. aktualisiert deinen Saisonplan spätestens zur nächsten vollen Stunde (8–23 Uhr).";
     msg.className = "msg ok";
     Saison.render(); renderHints(); Woche.render();
   }
@@ -122,7 +122,7 @@ const Saison = (() => {
     if (!data) {
       const p = document.createElement("p"); p.className = "hint"; p.style.margin = "0";
       p.textContent = Setup.exists()
-        ? "Dein Saisonplan wird gerade erstellt. Du bekommst eine Benachrichtigung, sobald er da ist (spätestens zur nächsten vollen Stunde, 8–22 Uhr)."
+        ? "Dein Saisonplan wird gerade erstellt. Du bekommst eine Benachrichtigung, sobald er da ist (spätestens zur nächsten vollen Stunde, 8–23 Uhr)."
         : "Leg unten zuerst deine Trainingswoche fest. Daraus erstellt Claude deinen Plan bis zum Wettkampf.";
       body.append(p);
       return;

@@ -20,7 +20,7 @@ function poolHoursNode(p) {
     d.textContent = "Claude konnte keine Öffnungszeiten finden. Trag Besonderheiten am besten im Wochencheck ein.";
   } else {
     d.className += " hint";
-    d.textContent = "Claude sucht die Öffnungszeiten heraus (spätestens zur nächsten vollen Stunde, 8–22 Uhr).";
+    d.textContent = "Claude sucht die Öffnungszeiten heraus (spätestens zur nächsten vollen Stunde, 8–23 Uhr).";
   }
   return d;
 }
