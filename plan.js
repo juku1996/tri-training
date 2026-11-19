@@ -48,9 +48,20 @@ const Plan = (() => {
     if (error) { $("plan-body").textContent = translate(error); return; }
     plans = data || [];
     if (idx >= plans.length) idx = 0;
-    await Promise.all([pendingWeeks(), Ergebnis.loadFor(plans.map((p) => p.week_start)),
+    await Promise.all([pendingWeeks(), Ergebnis.loadFor(plans.map((p) => p.week_start)), loadSubs(),
       typeof Partner !== "undefined" ? Partner.loadPlans(plans.map((p) => p.week_start)) : null]);
     draw();
+  }
+
+  // Ersatztrainings (freie Trainings, die eine geplante Einheit ersetzen): key week_start|session_id → workout
+  let subs = {};
+  async function loadSubs() {
+    subs = {};
+    if (!me) return;
+    const { data } = await db.from("workouts")
+      .select("id, day, sport, title, status, duration_min, distance_km, elevation_m, calories, avg_hr, feeling, note, exercises, replaces, needs_details")
+      .eq("user_id", me.id).not("replaces", "is", null);
+    (data || []).forEach((w) => { if (w.replaces) subs[w.replaces.week_start + "|" + w.replaces.session_id] = w; });
   }
 
   function draw() {
@@ -126,13 +137,15 @@ const Plan = (() => {
       list.forEach((s) => {
         const sp = SPORT[s.sport] || SPORT.other;
         const item = document.createElement("div");
-        item.className = "session" + (done.has(s.id) ? " done" : "");
+        const sub = subs[plan.week_start + "|" + s.id] || null;
+        item.className = "session" + (done.has(s.id) ? " done" : "") + (sub ? " replaced" : "");
 
         const check = document.createElement("button");
         check.type = "button"; check.className = "check";
         check.setAttribute("aria-pressed", done.has(s.id));
         check.setAttribute("aria-label", (done.has(s.id) ? "Erledigt: " : "Als erledigt markieren: ") + s.title);
         check.addEventListener("click", async () => {
+          if (sub) { Training.open(sub); return; }   // Ersatztraining: über das Training bearbeiten/löschen
           const was = done.has(s.id);
           was ? done.delete(s.id) : done.add(s.id);
           item.classList.toggle("done", !was);
@@ -206,6 +219,24 @@ const Plan = (() => {
           res.values.exercises.forEach((e) => { const li = document.createElement("li"); li.textContent = Uebungen.line(e); ul.append(li); });
           main.append(ul);
         }
+        const sDate = dayDate(plan.week_start, s.day);
+        if (sub) {
+          const tsp = Training.sportOf(sub.sport);
+          const line = document.createElement("div"); line.className = "subst-line";
+          line.textContent = "🔁 Stattdessen: " + tsp.icon + " " + (sub.title || tsp.label) + (sub.duration_min ? " · " + sub.duration_min + " Min." : "") + (sub.needs_details ? " · Werte fehlen noch" : "");
+          sum.append(line);
+          const eb = document.createElement("button"); eb.type = "button"; eb.className = "ghost res-edit";
+          eb.textContent = sub.needs_details ? "Werte eintragen" : "Ersatztraining bearbeiten";
+          eb.addEventListener("click", () => Training.open(sub));
+          main.append(eb);
+          if (!sum.className) sum.className = "has-details";
+        } else if (!done.has(s.id) && sDate <= parse(iso(new Date()))) {
+          const ab = document.createElement("button"); ab.type = "button"; ab.className = "ghost res-edit";
+          ab.textContent = "🔁 Anderes Training gemacht";
+          ab.addEventListener("click", () => Training.open(null, null, { replaces: { week_start: plan.week_start, session_id: s.id, day: iso(sDate), title: s.title } }));
+          main.append(ab);
+          if (!sum.className) sum.className = "has-details";
+        }
         if (hasGym(s) && !done.has(s.id)) {
           const lb = document.createElement("button"); lb.type = "button"; lb.className = "secondary res-edit gym-go";
           lb.textContent = "▶ Live mitschreiben";
@@ -213,7 +244,7 @@ const Plan = (() => {
           main.append(lb);
           if (!sum.className) sum.className = "has-details";
         }
-        if (done.has(s.id)) {
+        if (done.has(s.id) && !sub) {
           const eb = document.createElement("button"); eb.type = "button"; eb.className = "ghost res-edit";
           eb.textContent = res ? "Werte bearbeiten" : "Werte eintragen";
           eb.addEventListener("click", () => Ergebnis.open(plan, s, () => draw()));
@@ -426,6 +457,10 @@ const Plan = (() => {
         actions.append(live);
       }
       actions.append(doneBtn);
+      const other = document.createElement("button"); other.type = "button"; other.className = "ghost today-other";
+      other.textContent = "🔁 Anderes Training gemacht";
+      other.addEventListener("click", () => Training.open(null, null, { replaces: { week_start: nx.plan.week_start, session_id: nx.s.id, day: iso(nx.d), title: nx.s.title } }));
+      if (nx.d <= parse(iso(new Date()))) txt.append(other);
     }
     const all = document.createElement("button"); all.type = "button"; all.className = "secondary"; all.textContent = "Ganzer Plan";
     all.dataset.goto = "plan"; all.dataset.scroll = "plan-card";

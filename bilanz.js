@@ -29,11 +29,12 @@ const Bilanz = (() => {
 
   async function load() {
     const [w, p, r] = await Promise.all([
-      db.from("workouts").select("day, sport, status, duration_min, distance_km, elevation_m, calories, exercises").eq("user_id", me.id).eq("status", "erledigt"),
+      db.from("workouts").select("day, sport, status, duration_min, distance_km, elevation_m, calories, exercises, replaces").eq("user_id", me.id).eq("status", "erledigt"),
       db.from("training_plans").select("week_start, sessions, done").eq("user_id", me.id),
       db.from("session_results").select("week_start, session_id, values").eq("user_id", me.id)
     ]);
     const res = {};
+    const replaced = new Set((w.data || []).filter((x) => x.replaces).map((x) => x.replaces.week_start + "|" + x.replaces.session_id));
     (r.data || []).forEach((x) => { res[x.week_start + "|" + x.session_id] = x.values || {}; });
     entries = [];
     (w.data || []).forEach((x) => entries.push({
@@ -43,7 +44,7 @@ const Bilanz = (() => {
     (p.data || []).forEach((pl) => {
       const done = new Set(pl.done || []);
       (pl.sessions || []).forEach((s) => {
-        if (!done.has(s.id)) return;
+        if (!done.has(s.id) || replaced.has(pl.week_start + "|" + s.id)) return;   // Ersatztraining zählt selbst
         const v = res[pl.week_start + "|" + s.id] || {};
         const d = parse(pl.week_start); d.setDate(d.getDate() + Math.max(0, DAYS.indexOf(s.day)));
         entries.push({

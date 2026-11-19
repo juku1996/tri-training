@@ -9,6 +9,7 @@ const Training = (() => {
     { id: "strength", label: "Kraft & Gym", icon: "🏋️", color: "#8b6fd6", dist: null },
     { id: "football", label: "Fußball", icon: "⚽", color: "#4a9a5a", dist: "km" },
     { id: "yoga", label: "Yoga", icon: "🧘", color: "#c77dba", dist: null },
+    { id: "barre", label: "Barre & Pilates", icon: "🩰", color: "#d0679a", dist: null },
     { id: "hike", label: "Wandern", icon: "🥾", color: "#9a7b4f", dist: "km", elev: true, maxKmh: 12 },
     { id: "racket", label: "Tennis/Padel", icon: "🎾", color: "#b5a12d", dist: null },
     { id: "other", label: "Sonstiges", icon: "✨", color: "var(--muted)", dist: "km" }
@@ -62,13 +63,14 @@ const Training = (() => {
     if (!me) return;
     const since = shift(-28);
     const { data, error } = await db.from("workouts")
-      .select("id, day, sport, title, status, duration_min, distance_km, elevation_m, calories, avg_hr, feeling, note, exercises")
+      .select("id, day, sport, title, status, duration_min, distance_km, elevation_m, calories, avg_hr, feeling, note, exercises, replaces, needs_details")
       .eq("user_id", me.id).gte("day", since)
       .order("day", { ascending: false }).order("id", { ascending: false }).limit(40);
     const box = $("workout-list");
     box.innerHTML = "";
     if (error) { box.textContent = translate(error); return; }
     list = data || [];
+    renderPending();
 
     // Wochensumme (Mo–So, nur erledigte)
     const n = new Date(); const mon = new Date(n.getFullYear(), n.getMonth(), n.getDate());
@@ -104,6 +106,7 @@ const Training = (() => {
     m.textContent = [dayLabel(w.day), fmtDur(w.duration_min), fmtDist(w), w.elevation_m ? w.elevation_m + " hm" : null, pace(w), w.calories ? w.calories + " kcal" : null,
       Array.isArray(w.exercises) && w.exercises.length ? w.exercises.length + (w.exercises.length === 1 ? " Übung" : " Übungen") : null].filter(Boolean).join(" · ");
     txt.append(t, m);
+    if (w.replaces) { const r = document.createElement("span"); r.className = "w-meta"; r.textContent = "🔁 statt geplanter Einheit"; txt.append(r); }
     el.append(ic, txt);
     if (w.status === "geplant") {
       const g = document.createElement("span"); g.className = "status-pill"; g.textContent = "geplant"; el.append(g);
@@ -113,10 +116,21 @@ const Training = (() => {
   }
 
   // ---------- Formular ----------
-  function open(w, presetSport) {
+  // opts.replaces = { week_start, session_id, day, title } → Ersatz für eine geplante Einheit
+  function open(w, presetSport, opts) {
     editing = w || null;
     exEditor = null; $("wk-ex").innerHTML = "";
-    form = w ? { ...w } : { sport: presetSport || "swim", day: todayIso(), status: "erledigt" };
+    form = w ? { ...w } : { sport: presetSport || "other", day: todayIso(), status: "erledigt" };
+    if (!w && opts && opts.replaces) {
+      form.replaces = { week_start: opts.replaces.week_start, session_id: opts.replaces.session_id };
+      form.day = opts.replaces.day > todayIso() ? todayIso() : opts.replaces.day;
+    }
+    const rb = $("wk-replaces");
+    rb.hidden = !form.replaces;
+    rb.textContent = form.replaces
+      ? (opts && opts.replaces && opts.replaces.title ? "🔁 Statt „" + opts.replaces.title + "“ aus deinem Plan. Die Einheit wird dafür abgehakt." : "🔁 Ersetzt eine Einheit aus deinem Plan.")
+      : "";
+    if (w && w.needs_details) rb.hidden = false, rb.textContent = "Claude hat dieses Training für dich eingetragen. Ergänz kurz, wie es war – Dauer, Gefühl und was du sonst weißt.";
     if (form.sport === "swim" && form.distance_km != null) form.distance_m = Math.round(form.distance_km * 1000);
     $("wk-title-h").textContent = editing ? "Training bearbeiten" : "Training eintragen";
     $("wk-delete").hidden = !editing;
@@ -206,6 +220,7 @@ const Training = (() => {
       return fail("Das wären " + Math.round(dist / (dur / 60)) + " km/h. Stimmt die Dauer? Für Stunden bitte h:mm eingeben, z. B. 1:25.");
     }
     if (!future && !dur) return fail("Bitte trag noch ein, wie lange du trainiert hast.");
+    if (future && form.replaces) return fail("Ein Ersatztraining kannst du eintragen, sobald du es gemacht hast.");
     let exercises = null;
     if (form.sport === "strength" && exEditor && !future) {
       const ex = exEditor.get();
@@ -221,26 +236,53 @@ const Training = (() => {
       avg_hr: hr != null ? Math.round(hr) : null, feeling: form.feeling || null,
       elevation_m: elev != null ? Math.round(elev) : null,
       note: $("wk-note").value.trim() || null,
-      exercises
+      exercises,
+      replaces: form.replaces || null,
+      needs_details: false
     };
     const btn = $("wk-save"); btn.disabled = true;
     const q = editing ? db.from("workouts").update(row).eq("id", editing.id) : db.from("workouts").insert(row);
     const { error } = await q;
     btn.disabled = false;
     if (error) return fail(translate(error));
+    const hadReplace = !!form.replaces;
     close();
     render();
-    if (typeof Plan !== "undefined") Plan.renderToday();
+    if (typeof Plan !== "undefined") { if (hadReplace) Plan.render().then(() => Plan.renderToday()); else Plan.renderToday(); }
     if (typeof Bilanz !== "undefined") Bilanz.render();
     Uebungen.refresh();
+  }
+
+  // Heute: von Claude eingetragene Trainings, bei denen noch Werte fehlen
+  function renderPending() {
+    const box = $("wk-pending");
+    if (!box) return;
+    box.innerHTML = "";
+    list.filter((w) => w.needs_details).forEach((w) => {
+      const sp = sportOf(w.sport);
+      const card = document.createElement("div"); card.className = "card claude-msg";
+      const head = document.createElement("div"); head.className = "cm-head";
+      const b = document.createElement("b"); b.textContent = "Wie war dein Training?";
+      head.append(b);
+      const p = document.createElement("p"); p.className = "cm-body";
+      p.textContent = "Ich habe " + sp.icon + " " + (w.title || sp.label) + " (" + dayLabel(w.day) + ")" + (w.replaces ? " statt deiner geplanten Einheit" : "") + " für dich eingetragen. Magst du kurz ergänzen, wie es war?";
+      const act = document.createElement("div"); act.className = "cm-actions";
+      const go = document.createElement("button"); go.type = "button"; go.textContent = "Werte eintragen";
+      go.addEventListener("click", () => open(w));
+      act.append(go);
+      card.append(head, p, act);
+      box.append(card);
+    });
   }
 
   async function remove() {
     if (!editing || !confirm("Dieses Training löschen?")) return;
     const { error } = await db.from("workouts").delete().eq("id", editing.id);
     if (error) { $("wk-msg").textContent = translate(error); $("wk-msg").className = "msg error"; return; }
+    const hadReplace = !!(editing && editing.replaces);
     close(); render();
     if (typeof Bilanz !== "undefined") Bilanz.render();
+    if (hadReplace && typeof Plan !== "undefined") Plan.render().then(() => Plan.renderToday());
   }
 
   function bind() {
@@ -257,5 +299,5 @@ const Training = (() => {
     $("wk-sheet").querySelectorAll("input").forEach((i) => i.addEventListener("input", () => { $("wk-msg").textContent = ""; }));
   }
 
-  return { bind, render, open };
+  return { bind, render, open, sportOf };
 })();
