@@ -29,7 +29,7 @@ const Partner = (() => {
   async function loadPlans(weekStarts) {
     Object.keys(plans).forEach((k) => delete plans[k]);
     if (!partner || !weekStarts.length) return;
-    const { data } = await db.from("training_plans").select("week_start, sessions, done")
+    const { data } = await db.from("training_plans").select("week_start, sessions, done, replaced")
       .eq("user_id", partner.id).in("week_start", weekStarts);
     (data || []).forEach((p) => { plans[p.week_start] = p; });
   }
