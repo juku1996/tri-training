@@ -170,7 +170,7 @@ const Plan = (() => {
         if (s.together) title.append(togetherPill(partner));
         const meta = document.createElement("div");
         meta.className = "session-meta";
-        const exPlan = s.sport === "strength" ? exTable(s) : null;
+        const exPlan = hasGym(s) ? exTable(s) : null;
         const exN = exPlan ? exPlan.querySelectorAll("li").length : 0;
         meta.textContent = [sp.label, s.duration_min ? s.duration_min + " Min." : null, exN ? exN + " Übungen" : null, s.intensity].filter(Boolean).join(" · ");
         sum.append(title, meta);
@@ -206,7 +206,7 @@ const Plan = (() => {
           res.values.exercises.forEach((e) => { const li = document.createElement("li"); li.textContent = Uebungen.line(e); ul.append(li); });
           main.append(ul);
         }
-        if (s.sport === "strength" && !done.has(s.id)) {
+        if (hasGym(s) && !done.has(s.id)) {
           const lb = document.createElement("button"); lb.type = "button"; lb.className = "secondary res-edit gym-go";
           lb.textContent = "▶ Live mitschreiben";
           lb.addEventListener("click", () => Gym.start({ week_start: plan.week_start, session: s }));
@@ -226,6 +226,9 @@ const Plan = (() => {
     });
     updateProgress();
   }
+
+  // Gym-Teil: Kraft-Einheit oder jede Einheit mit hinterlegten Übungen (z. B. Laufband + Kraft)
+  const hasGym = (s) => s.sport === "strength" || (Array.isArray(s.exercises) && s.exercises.length > 0);
 
   // Klare Übungsliste einer Kraft-Einheit: Name, Sätze × Wdh., letztes Gewicht
   function exTable(s) {
@@ -396,7 +399,7 @@ const Plan = (() => {
         const wn = document.createElement("div"); wn.className = "session-weather"; wn.textContent = "☔ " + nx.s.weather_note;
         txt.append(wn);
       }
-      const exToday = nx.s.sport === "strength" ? exTable(nx.s) : null;
+      const exToday = hasGym(nx.s) ? exTable(nx.s) : null;
       if (exToday) txt.append(exToday);
       else if (Array.isArray(nx.s.details) && nx.s.details.length) {
         const ul = document.createElement("ul"); ul.style.margin = "8px 0 0"; ul.style.paddingLeft = "18px";
@@ -416,7 +419,7 @@ const Plan = (() => {
         draw(); renderToday();
         Ergebnis.open(nx.plan, nx.s, () => draw());
       });
-      if (nx.s.sport === "strength") {
+      if (hasGym(nx.s)) {
         const live = document.createElement("button"); live.type = "button"; live.textContent = "▶ Live starten";
         live.addEventListener("click", () => Gym.start({ week_start: nx.plan.week_start, session: nx.s }));
         doneBtn.className = "secondary";
