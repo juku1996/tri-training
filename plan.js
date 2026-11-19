@@ -294,7 +294,11 @@ const Plan = (() => {
       });
     });
     all.sort((a, b) => (a.d - b.d) || (a.i - b.i));
-    return all.find((x) => !x.s.optional) || all[0] || null;
+    if (!all.length) return null;
+    // Frühester Tag zuerst (auch wenn optional); am selben Tag hat eine Pflicht-Einheit Vorrang
+    const first = all[0].d.getTime();
+    const sameDay = all.filter((x) => x.d.getTime() === first);
+    return sameDay.find((x) => !x.s.optional) || sameDay[0];
   }
 
   function weekProgress() {
