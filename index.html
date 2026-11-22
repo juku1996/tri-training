@@ -320,6 +320,10 @@
     .today-when { font-size: .8rem; font-weight: 650; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); margin-bottom: 6px; }
     .today-actions { display: flex; gap: 10px; margin-top: 14px; }
     .today-actions button { flex: 1; }
+    .today-block + .today-block { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line); }
+    .today-handled { display: flex; gap: 10px; align-items: center; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); font-size: .9rem; color: var(--muted); }
+    .today-handled b { color: var(--fg); font-weight: 600; }
+    .today-handled.done b, .today-handled.repl b, .today-handled.skip b { text-decoration: line-through; text-decoration-color: var(--muted); }
     .hint-card { display: flex; align-items: center; gap: 12px; background: var(--accent-soft); border: 0; }
     .hint-card .hint-text { flex: 1; font-size: .95rem; }
     .hint-card .hint-text b { display: block; }

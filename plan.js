@@ -435,22 +435,26 @@ const Plan = (() => {
     return error;
   }
 
-  function nextSession() {
+  // Nächster Trainingstag (heute oder später) mit allen Einheiten dieses Tages.
+  // open: noch offen (Pflicht zuerst), handled: schon erledigt/ersetzt/abgesagt
+  function nextDay() {
     const today = parse(iso(new Date()));
     const all = [];
     plans.forEach((p) => {
-      const done = new Set([...(p.done || []), ...(p.replaced || []), ...(p.skipped || [])]);
+      const done = new Set(p.done || []), repl = new Set(p.replaced || []), skip = new Set(p.skipped || []);
       (Array.isArray(p.sessions) ? p.sessions : []).forEach((s, i) => {
         const d = dayDate(p.week_start, s.day);
-        if (d >= today && !done.has(s.id)) all.push({ plan: p, s, d, i });
+        if (d < today) return;
+        const state = done.has(s.id) ? "done" : repl.has(s.id) ? "repl" : skip.has(s.id) ? "skip" : "open";
+        all.push({ plan: p, s, d, i, state });
       });
     });
-    all.sort((a, b) => (a.d - b.d) || (a.i - b.i));
-    if (!all.length) return null;
-    // Frühester Tag zuerst (auch wenn optional); am selben Tag hat eine Pflicht-Einheit Vorrang
-    const first = all[0].d.getTime();
-    const sameDay = all.filter((x) => x.d.getTime() === first);
-    return sameDay.find((x) => !x.s.optional) || sameDay[0];
+    const firstOpen = all.filter((x) => x.state === "open").sort((a, b) => (a.d - b.d) || (a.i - b.i))[0];
+    if (!firstOpen) return null;
+    const t = firstOpen.d.getTime();
+    const same = all.filter((x) => x.d.getTime() === t).sort((a, b) => a.i - b.i);
+    const open = same.filter((x) => x.state === "open").sort((a, b) => (!!a.s.optional - !!b.s.optional) || (a.i - b.i));
+    return { d: firstOpen.d, open, handled: same.filter((x) => x.state !== "open") };
   }
 
   function weekProgress() {
@@ -526,79 +530,104 @@ const Plan = (() => {
       return;
     }
 
-    const nx = nextSession();
+    const nd = nextDay();
     const prog = weekProgress();
-    if (!nx) {
+    const all = document.createElement("button"); all.type = "button"; all.className = "secondary"; all.textContent = "Ganzer Plan";
+    all.dataset.goto = "plan"; all.dataset.scroll = "plan-card";
+    if (!nd) {
       const allDone = prog && prog.total && prog.n === prog.total;
       title.textContent = allDone ? "Geschafft" : "Dein Plan";
       const p = document.createElement("p"); p.style.margin = "0";
       p.textContent = allDone ? "Alle geplanten Einheiten der Woche erledigt. Stark! 🎉"
         : "Für diese Woche steht nichts mehr an. Hast du etwas gemacht, aber noch nicht abgehakt? Im Plan kannst du es nachtragen.";
       body.append(p);
+      actions.append(all);
     } else {
-      const sp = SPORT[nx.s.sport] || SPORT.other;
-      const isTod = isToday(nx.d);
+      const isTod = isToday(nd.d);
       title.textContent = isTod ? "Heute" : "Als Nächstes";
       const when = document.createElement("div"); when.className = "today-when";
-      when.textContent = nx.d.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "short" });
-      const wl = typeof Wetter !== "undefined" ? Wetter.label(iso(nx.d)) : "";
+      when.textContent = nd.d.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "short" })
+        + (nd.open.length > 1 ? " · " + nd.open.length + " Einheiten" : "");
+      const wl = typeof Wetter !== "undefined" ? Wetter.label(iso(nd.d)) : "";
       if (wl) { const w = document.createElement("span"); w.className = "day-weather"; w.textContent = wl; when.append(w); }
-      const item = document.createElement("div"); item.className = "today-item";
-      const dot = document.createElement("span"); dot.className = "sdot"; dot.style.background = sp.color;
-      const txt = document.createElement("div");
-      const t = document.createElement("div"); t.className = "t"; t.textContent = nx.s.title;
+      body.append(when);
       const partner = typeof Partner !== "undefined" ? Partner.get() : null;
-      if (nx.s.together) { t.append(" "); t.append(togetherPill(partner)); }
-      const m = document.createElement("div"); m.className = "m";
-      m.textContent = [sp.label, nx.s.duration_min ? nx.s.duration_min + " Min." : null, nx.s.intensity].filter(Boolean).join(" · ");
-      txt.append(t, m);
-      if (nx.s.weather_note) {
-        const wn = document.createElement("div"); wn.className = "session-weather"; wn.textContent = "☔ " + nx.s.weather_note;
-        txt.append(wn);
-      }
-      const exToday = hasGym(nx.s) ? exTable(nx.s) : null;
-      if (exToday) txt.append(exToday);
-      else if (Array.isArray(nx.s.details) && nx.s.details.length) {
-        const ul = document.createElement("ul"); ul.style.margin = "8px 0 0"; ul.style.paddingLeft = "18px";
-        nx.s.details.forEach((d) => { const li = document.createElement("li"); li.textContent = d; li.style.margin = "3px 0"; ul.append(li); });
-        txt.append(ul);
-      }
-      item.append(dot, txt);
-      body.append(when, item);
 
-      const doneBtn = document.createElement("button"); doneBtn.type = "button"; doneBtn.textContent = "Erledigt ✓";
-      doneBtn.addEventListener("click", async () => {
-        doneBtn.disabled = true;
-        const set = new Set(nx.plan.done || []); set.add(nx.s.id);
-        const err = await saveDone(nx.plan, set);
-        doneBtn.disabled = false;
-        if (err) return alert(translate(err));
-        draw(); renderToday();
-        Ergebnis.open(nx.plan, nx.s, () => draw());
+      nd.open.forEach((nx, k) => {
+        const sp = SPORT[nx.s.sport] || SPORT.other;
+        const block = document.createElement("div"); block.className = "today-block";
+        const item = document.createElement("div"); item.className = "today-item";
+        const dot = document.createElement("span"); dot.className = "sdot"; dot.style.background = sp.color;
+        const txt = document.createElement("div");
+        const t = document.createElement("div"); t.className = "t"; t.textContent = nx.s.title;
+        if (nx.s.optional) { const o = document.createElement("span"); o.className = "pill opt-pill"; o.textContent = "optional"; t.append(" ", o); }
+        if (nx.s.together) { t.append(" "); t.append(togetherPill(partner)); }
+        const m = document.createElement("div"); m.className = "m";
+        m.textContent = [sp.label, nx.s.duration_min ? nx.s.duration_min + " Min." : null, nx.s.intensity].filter(Boolean).join(" · ");
+        txt.append(t, m);
+        if (nx.s.moved_from) txt.append(movedLine(nx.s.moved_from));
+        if (nx.s.weather_note) {
+          const wn = document.createElement("div"); wn.className = "session-weather"; wn.textContent = "☔ " + nx.s.weather_note;
+          txt.append(wn);
+        }
+        const exToday = hasGym(nx.s) ? exTable(nx.s) : null;
+        if (exToday) txt.append(exToday);
+        else if (Array.isArray(nx.s.details) && nx.s.details.length) {
+          const ul = document.createElement("ul"); ul.style.margin = "8px 0 0"; ul.style.paddingLeft = "18px";
+          nx.s.details.forEach((d) => { const li = document.createElement("li"); li.textContent = d; li.style.margin = "3px 0"; ul.append(li); });
+          txt.append(ul);
+        }
+        item.append(dot, txt);
+        block.append(item);
+
+        const row = document.createElement("div"); row.className = "today-actions";
+        const doneBtn = document.createElement("button"); doneBtn.type = "button"; doneBtn.textContent = "Erledigt ✓";
+        doneBtn.addEventListener("click", async () => {
+          doneBtn.disabled = true;
+          const set = new Set(nx.plan.done || []); set.add(nx.s.id);
+          const err = await saveDone(nx.plan, set);
+          doneBtn.disabled = false;
+          if (err) return alert(translate(err));
+          draw(); renderToday();
+          Ergebnis.open(nx.plan, nx.s, () => draw());
+        });
+        if (hasGym(nx.s)) {
+          const live = document.createElement("button"); live.type = "button"; live.textContent = "▶ Live starten";
+          live.addEventListener("click", () => Gym.start({ week_start: nx.plan.week_start, session: nx.s }));
+          doneBtn.className = "secondary";
+          row.append(live);
+        }
+        row.append(doneBtn);
+        if (nd.open.length === 1) row.append(all);
+        const other = document.createElement("button"); other.type = "button"; other.className = "ghost today-other";
+        other.textContent = "🔁 Anderes Training gemacht";
+        other.addEventListener("click", () => Training.open(null, null, { replaces: { week_start: nx.plan.week_start, session_id: nx.s.id, day: iso(nx.d), title: nx.s.title } }));
+        const mvb = document.createElement("button"); mvb.type = "button"; mvb.className = "ghost today-other";
+        mvb.textContent = "📅 Auf einen anderen Tag verschieben";
+        mvb.addEventListener("click", () => Move.open(nx.plan, nx.s));
+        const cxb = document.createElement("button"); cxb.type = "button"; cxb.className = "ghost today-other";
+        cxb.textContent = "✕ Absagen";
+        cxb.addEventListener("click", () => Absage.open(nx.plan, nx.s));
+        if (nx.d <= parse(iso(new Date()))) txt.append(other);
+        txt.append(mvb, cxb);
+        block.append(row);
+        body.append(block);
       });
-      if (hasGym(nx.s)) {
-        const live = document.createElement("button"); live.type = "button"; live.textContent = "▶ Live starten";
-        live.addEventListener("click", () => Gym.start({ week_start: nx.plan.week_start, session: nx.s }));
-        doneBtn.className = "secondary";
-        actions.append(live);
-      }
-      actions.append(doneBtn);
-      const other = document.createElement("button"); other.type = "button"; other.className = "ghost today-other";
-      other.textContent = "🔁 Anderes Training gemacht";
-      other.addEventListener("click", () => Training.open(null, null, { replaces: { week_start: nx.plan.week_start, session_id: nx.s.id, day: iso(nx.d), title: nx.s.title } }));
-      const mvb = document.createElement("button"); mvb.type = "button"; mvb.className = "ghost today-other";
-      mvb.textContent = "📅 Auf einen anderen Tag verschieben";
-      mvb.addEventListener("click", () => Move.open(nx.plan, nx.s));
-      const cxb = document.createElement("button"); cxb.type = "button"; cxb.className = "ghost today-other";
-      cxb.textContent = "✕ Absagen";
-      cxb.addEventListener("click", () => Absage.open(nx.plan, nx.s));
-      if (nx.d <= parse(iso(new Date()))) txt.append(other);
-      txt.append(mvb, cxb);
+
+      nd.handled.forEach((x) => {
+        const sp = SPORT[x.s.sport] || SPORT.other;
+        const r = document.createElement("div"); r.className = "today-handled " + x.state;
+        const dot = document.createElement("span"); dot.className = "sdot"; dot.style.background = sp.color;
+        const tx = document.createElement("span");
+        const label = x.state === "done" ? "✓ erledigt" : x.state === "repl" ? "🔁 durch anderes Training ersetzt" : "✕ abgesagt";
+        const b1 = document.createElement("b"); b1.textContent = x.s.title;
+        tx.append(b1, " · " + label);
+        r.append(dot, tx);
+        body.append(r);
+      });
+      if (nd.open.length > 1) actions.append(all);
     }
-    const all = document.createElement("button"); all.type = "button"; all.className = "secondary"; all.textContent = "Ganzer Plan";
-    all.dataset.goto = "plan"; all.dataset.scroll = "plan-card";
-    actions.append(all);
-    body.append(actions);
+    if (actions.children.length) body.append(actions);
     missed().forEach((x) => {
       const sp = SPORT[x.s.sport] || SPORT.other;
       const row = document.createElement("div"); row.className = "missed-row";
