@@ -41,7 +41,7 @@ const Plan = (() => {
     const card = $("plan-card");
     if (!card || !me) return;
     const { data, error } = await db.from("training_plans")
-      .select("week_start, note, sessions, done, replaced, plan_written_at")
+      .select("week_start, note, sessions, done, replaced, skipped, plan_written_at")
       .eq("user_id", me.id)
       .gte("week_start", iso(thisMonday()))
       .order("week_start")
@@ -55,15 +55,40 @@ const Plan = (() => {
   }
 
   // Ersatztrainings (freie Trainings, die eine geplante Einheit ersetzen): key week_start|session_id → workout
-  let subs = {};
+  // Absagen (eigene, mit Grund): key week_start|session_id → { reason, note }
+  // freeWeek: freie Trainings dieser Woche ohne Bezug zum Plan
+  let subs = {}, skips = {}, freeWeek = 0;
   async function loadSubs() {
-    subs = {};
+    subs = {}; skips = {}; freeWeek = 0;
     if (!me) return;
-    const { data } = await db.from("workouts")
-      .select("id, day, sport, title, status, duration_min, distance_km, elevation_m, calories, avg_hr, feeling, note, exercises, replaces, needs_details")
-      .eq("user_id", me.id).not("replaces", "is", null);
-    (data || []).forEach((w) => { if (w.replaces) subs[w.replaces.week_start + "|" + w.replaces.session_id] = w; });
+    const [w, k, f] = await Promise.all([
+      db.from("workouts")
+        .select("id, day, sport, title, status, duration_min, distance_km, elevation_m, calories, avg_hr, feeling, note, exercises, replaces, needs_details")
+        .eq("user_id", me.id).not("replaces", "is", null),
+      db.from("session_skips").select("week_start, session_id, reason, note").eq("user_id", me.id),
+      db.from("workouts").select("id, day, replaces").eq("user_id", me.id).eq("status", "erledigt").gte("day", iso(thisMonday()))
+    ]);
+    (w.data || []).forEach((x) => { if (x.replaces) subs[x.replaces.week_start + "|" + x.replaces.session_id] = x; });
+    (k.data || []).forEach((x) => { skips[x.week_start + "|" + x.session_id] = x; });
+    const end = thisMonday(); end.setDate(end.getDate() + 6);
+    freeWeek = (f.data || []).filter((x) => !x.replaces && x.day <= iso(end)).length;
   }
+
+  // Zahlen einer Woche: geplante Einheiten (Pflicht + erledigte optionale), erledigt, ersetzt, abgesagt
+  function stats(plan) {
+    const ss = Array.isArray(plan.sessions) ? plan.sessions : [];
+    const done = new Set(plan.done || []), repl = new Set(plan.replaced || []), skip = new Set(plan.skipped || []);
+    const counted = ss.filter((x) => !skip.has(x.id) && (!x.optional || done.has(x.id) || repl.has(x.id)));
+    return {
+      n: counted.filter((x) => done.has(x.id) || repl.has(x.id)).length,
+      total: counted.length,
+      r: ss.filter((x) => repl.has(x.id)).length,
+      k: ss.filter((x) => skip.has(x.id)).length,
+      made: ss.filter((x) => done.has(x.id) || repl.has(x.id)).length
+    };
+  }
+  const extras = (st) => [st.r ? st.r + " durch anderes Training" : null, st.k ? st.k + " abgesagt" : null].filter(Boolean).join(", ");
+  const REASONS = { zeit: "Keine Zeit", krank: "Krank", schmerzen: "Schmerzen", muede: "Zu müde", wetter: "Wetter", motivation: "Keine Lust", sonstiges: "Anderer Grund" };
 
   function draw() {
     const body = $("plan-body");
@@ -112,13 +137,13 @@ const Plan = (() => {
     const sessions = Array.isArray(plan.sessions) ? plan.sessions : [];
     const done = new Set(Array.isArray(plan.done) ? plan.done : []);
     const repl = new Set(Array.isArray(plan.replaced) ? plan.replaced : []);
-    const required = sessions.filter((s) => !s.optional);
+    const skip = new Set(Array.isArray(plan.skipped) ? plan.skipped : []);
     const updateProgress = () => {
-      const n = required.filter((s) => done.has(s.id) || repl.has(s.id)).length;
-      const r = required.filter((s) => repl.has(s.id)).length;
-      $("plan-progress").hidden = !required.length;
-      $("plan-progress-text").textContent = n + " von " + required.length + " Einheiten erledigt" + (r ? " (" + r + " durch anderes Training)" : "");
-      $("plan-progress-bar").style.width = (required.length ? Math.round(n / required.length * 100) : 0) + "%";
+      const st = stats(Object.assign({}, plan, { done: [...done] }));
+      const ex = extras(st);
+      $("plan-progress").hidden = !st.total && !st.k;
+      $("plan-progress-text").textContent = st.n + " von " + st.total + " Einheiten erledigt" + (ex ? " (" + ex + ")" : "");
+      $("plan-progress-bar").style.width = (st.total ? Math.round(st.n / st.total * 100) : 0) + "%";
     };
 
     const partner = typeof Partner !== "undefined" ? Partner.get() : null;
@@ -142,13 +167,16 @@ const Plan = (() => {
         const item = document.createElement("div");
         const sub = subs[plan.week_start + "|" + s.id] || null;
         const isRepl = !!sub || repl.has(s.id);
-        item.className = "session" + (done.has(s.id) ? " done" : "") + (isRepl ? " replaced" : "");
+        const isSkip = !isRepl && !done.has(s.id) && skip.has(s.id);
+        const sk = skips[plan.week_start + "|" + s.id] || null;
+        item.className = "session" + (done.has(s.id) ? " done" : "") + (isRepl ? " replaced" : "") + (isSkip ? " skipped" : "");
 
         const check = document.createElement("button");
-        check.type = "button"; check.className = "check" + (isRepl ? " subst" : "");
+        check.type = "button"; check.className = "check" + (isRepl ? " subst" : "") + (isSkip ? " skip" : "");
         check.setAttribute("aria-pressed", done.has(s.id));
-        check.setAttribute("aria-label", isRepl ? "Ersetzt durch anderes Training: " + s.title : (done.has(s.id) ? "Erledigt: " : "Als erledigt markieren: ") + s.title);
+        check.setAttribute("aria-label", isRepl ? "Ersetzt durch anderes Training: " + s.title : isSkip ? "Abgesagt, doch gemacht? " + s.title : (done.has(s.id) ? "Erledigt: " : "Als erledigt markieren: ") + s.title);
         if (isRepl) check.textContent = "🔁";
+        if (isSkip) check.textContent = "✕";
         check.addEventListener("click", async () => {
           if (sub) { Training.open(sub); return; }   // Ersatztraining: über das Training bearbeiten/löschen
           if (isRepl) return;
@@ -167,6 +195,7 @@ const Plan = (() => {
             alert(translate(error));
           } else {
             plan.done = [...done];
+            if (isSkip) { await render(); renderToday(); if (!was) Ergebnis.open(plan, s, () => draw()); return; }
             renderToday();
             if (typeof Bilanz !== "undefined") Bilanz.render();
             if (!was) Ergebnis.open(plan, s, () => draw());
@@ -182,9 +211,9 @@ const Plan = (() => {
         dot.className = "sdot"; dot.style.background = sp.color;
         const tt = document.createElement("span"); tt.className = "st-text"; tt.textContent = s.title;
         title.append(dot, tt);
-        if (isRepl) {
+        if (isRepl || isSkip) {
           const o = document.createElement("span");
-          o.className = "pill repl-pill"; o.textContent = "nicht gemacht";
+          o.className = "pill repl-pill"; o.textContent = isSkip ? "abgesagt" : "nicht gemacht";
           title.append(o);
         } else if (s.optional) {
           const o = document.createElement("span");
@@ -251,6 +280,20 @@ const Plan = (() => {
           const line = document.createElement("div"); line.className = "subst-line";
           line.textContent = "🔁 Durch ein anderes Training ersetzt";
           sum.append(line);
+        } else if (isSkip) {
+          const line = document.createElement("div"); line.className = "skip-line";
+          line.textContent = "Abgesagt" + (sk ? " · " + (REASONS[sk.reason] || "") + (sk.note ? ": " + sk.note : "") : "");
+          sum.append(line);
+          const ub = document.createElement("button"); ub.type = "button"; ub.className = "ghost res-edit";
+          ub.textContent = "Absage zurücknehmen";
+          ub.addEventListener("click", async () => {
+            ub.disabled = true;
+            const { error } = await db.from("session_skips").delete().eq("user_id", me.id).eq("week_start", plan.week_start).eq("session_id", s.id);
+            if (error) { ub.disabled = false; return alert(translate(error)); }
+            await render(); renderToday();
+          });
+          main.append(ub);
+          if (!sum.className) sum.className = "has-details";
         } else if (!done.has(s.id)) {
           const row = document.createElement("div"); row.className = "sess-actions";
           const mv = document.createElement("button"); mv.type = "button"; mv.className = "ghost";
@@ -263,10 +306,14 @@ const Plan = (() => {
             ab.addEventListener("click", () => Training.open(null, null, { replaces: { week_start: plan.week_start, session_id: s.id, day: iso(sDate), title: s.title } }));
             row.append(ab);
           }
+          const cx = document.createElement("button"); cx.type = "button"; cx.className = "ghost";
+          cx.textContent = "✕ Absagen";
+          cx.addEventListener("click", () => Absage.open(plan, s));
+          row.append(cx);
           main.append(row);
           if (!sum.className) sum.className = "has-details";
         }
-        if (hasGym(s) && !done.has(s.id) && !isRepl) {
+        if (hasGym(s) && !done.has(s.id) && !isRepl && !isSkip) {
           const lb = document.createElement("button"); lb.type = "button"; lb.className = "secondary res-edit gym-go";
           lb.textContent = "▶ Live mitschreiben";
           lb.addEventListener("click", () => Gym.start({ week_start: plan.week_start, session: s }));
@@ -282,7 +329,7 @@ const Plan = (() => {
         item.append(check, main);
         body.append(item);
       });
-      if (plist.length) body.append(partnerLine(partner, plist, new Set(pplan.done || []), new Set(pplan.replaced || [])));
+      if (plist.length) body.append(partnerLine(partner, plist, new Set(pplan.done || []), new Set(pplan.replaced || []), new Set(pplan.skipped || [])));
     });
     updateProgress();
   }
@@ -329,17 +376,17 @@ const Plan = (() => {
   }
 
   // Kompakte Zeile: was der Trainingspartner an diesem Tag macht
-  function partnerLine(partner, list, done, repl) {
+  function partnerLine(partner, list, done, repl, skip) {
     const row = document.createElement("div");
     row.className = "partner-line";
     const who = document.createElement("b"); who.textContent = partner.name + ":";
     row.append(who);
     list.forEach((s) => {
       const sp = SPORT[s.sport] || SPORT.other;
-      const it = document.createElement("span"); it.className = "pl-item" + (done.has(s.id) ? " done" : "") + (repl.has(s.id) ? " repl" : "");
+      const it = document.createElement("span"); it.className = "pl-item" + (done.has(s.id) ? " done" : "") + (repl.has(s.id) || skip.has(s.id) ? " repl" : "");
       const dot = document.createElement("span"); dot.className = "sdot"; dot.style.background = sp.color;
       it.append(dot, document.createTextNode([sp.label, s.duration_min ? s.duration_min + " Min." : null].filter(Boolean).join(" ")
-        + (s.together ? " 👫" : "") + (s.optional ? " (optional)" : "") + (s.moved_from ? " 📅" : "") + (done.has(s.id) ? " ✓" : "") + (repl.has(s.id) ? " · 🔁 anderes Training" : "")));
+        + (s.together ? " 👫" : "") + (s.optional ? " (optional)" : "") + (s.moved_from ? " 📅" : "") + (done.has(s.id) ? " ✓" : "") + (repl.has(s.id) ? " · 🔁 anderes Training" : "") + (skip.has(s.id) && !done.has(s.id) && !repl.has(s.id) ? " · abgesagt" : "")));
       row.append(it);
     });
     return row;
@@ -357,7 +404,7 @@ const Plan = (() => {
     const today = parse(iso(new Date()));
     const all = [];
     plans.forEach((p) => {
-      const done = new Set([...(Array.isArray(p.done) ? p.done : []), ...(Array.isArray(p.replaced) ? p.replaced : [])]);
+      const done = new Set([...(p.done || []), ...(p.replaced || []), ...(p.skipped || [])]);
       (Array.isArray(p.sessions) ? p.sessions : []).forEach((s, i) => {
         const d = dayDate(p.week_start, s.day);
         if (d >= today && !done.has(s.id)) all.push({ plan: p, s, d, i });
@@ -374,10 +421,7 @@ const Plan = (() => {
   function weekProgress() {
     const cur = plans.find((p) => p.week_start === iso(thisMonday()));
     if (!cur) return null;
-    const req = (cur.sessions || []).filter((s) => !s.optional);
-    const done = new Set([...(cur.done || []), ...(cur.replaced || [])]);
-    const rp = new Set(cur.replaced || []);
-    return { n: req.filter((s) => done.has(s.id)).length, total: req.length, r: req.filter((s) => rp.has(s.id)).length };
+    return Object.assign(stats(cur), { free: freeWeek });
   }
 
   // Verpasste Pflicht-Einheiten dieser Woche (Tag vorbei, weder erledigt noch ersetzt)
@@ -385,7 +429,7 @@ const Plan = (() => {
     const cur = plans.find((p) => p.week_start === iso(thisMonday()));
     if (!cur) return [];
     const today = parse(iso(new Date()));
-    const done = new Set([...(cur.done || []), ...(cur.replaced || [])]);
+    const done = new Set([...(cur.done || []), ...(cur.replaced || []), ...(cur.skipped || [])]);
     return (cur.sessions || []).filter((s) => !s.optional && !done.has(s.id) && dayDate(cur.week_start, s.day) < today)
       .map((s) => ({ plan: cur, s, d: dayDate(cur.week_start, s.day) }));
   }
@@ -453,7 +497,7 @@ const Plan = (() => {
       const allDone = prog && prog.total && prog.n === prog.total;
       title.textContent = allDone ? "Geschafft" : "Dein Plan";
       const p = document.createElement("p"); p.style.margin = "0";
-      p.textContent = allDone ? "Alle Einheiten der Woche erledigt. Stark! 🎉"
+      p.textContent = allDone ? "Alle geplanten Einheiten der Woche erledigt. Stark! 🎉"
         : "Für diese Woche steht nichts mehr an. Hast du etwas gemacht, aber noch nicht abgehakt? Im Plan kannst du es nachtragen.";
       body.append(p);
     } else {
@@ -510,8 +554,11 @@ const Plan = (() => {
       const mvb = document.createElement("button"); mvb.type = "button"; mvb.className = "ghost today-other";
       mvb.textContent = "📅 Auf einen anderen Tag verschieben";
       mvb.addEventListener("click", () => Move.open(nx.plan, nx.s));
+      const cxb = document.createElement("button"); cxb.type = "button"; cxb.className = "ghost today-other";
+      cxb.textContent = "✕ Absagen";
+      cxb.addEventListener("click", () => Absage.open(nx.plan, nx.s));
       if (nx.d <= parse(iso(new Date()))) txt.append(other);
-      txt.append(mvb);
+      txt.append(mvb, cxb);
     }
     const all = document.createElement("button"); all.type = "button"; all.className = "secondary"; all.textContent = "Ganzer Plan";
     all.dataset.goto = "plan"; all.dataset.scroll = "plan-card";
@@ -530,13 +577,21 @@ const Plan = (() => {
       mv.addEventListener("click", () => Move.open(x.plan, x.s));
       const ot = document.createElement("button"); ot.type = "button"; ot.className = "ghost"; ot.textContent = "🔁 Anderes gemacht";
       ot.addEventListener("click", () => Training.open(null, null, { replaces: { week_start: x.plan.week_start, session_id: x.s.id, day: iso(x.d), title: x.s.title } }));
-      btns.append(mv, ot);
+      const cx = document.createElement("button"); cx.type = "button"; cx.className = "ghost"; cx.textContent = "✕ Absagen";
+      cx.addEventListener("click", () => Absage.open(x.plan, x.s));
+      btns.append(mv, ot, cx);
       row.append(t, btns);
       body.append(row);
     });
-    if (prog && prog.total) {
+    if (prog && (prog.total || prog.free || prog.k)) {
       const p = document.createElement("p"); p.className = "hint"; p.style.margin = "12px 0 0";
-      p.textContent = "Diese Woche: " + prog.n + " von " + prog.total + " Einheiten erledigt" + (prog.r ? " (" + prog.r + " durch anderes Training)" : "");
+      const trainings = prog.made + prog.free;
+      const parts = ["Diese Woche: " + trainings + (trainings === 1 ? " Training" : " Trainings") + " gemacht"];
+      if (prog.total) parts.push(prog.n + " von " + prog.total + " geplanten Einheiten");
+      if (prog.free) parts.push(prog.free + (prog.free === 1 ? " freies Training" : " freie Trainings"));
+      if (prog.r) parts.push(prog.r + " ersetzt");
+      if (prog.k) parts.push(prog.k + " abgesagt");
+      p.textContent = parts.join(" · ");
       body.append(p);
     }
     // Geänderte Wochen ganz oben, neu eingetragene Wochen ohne Plan unten

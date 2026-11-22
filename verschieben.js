@@ -94,3 +94,67 @@ const Move = (() => {
 
   return { open };
 })();
+
+// Einheit absagen (ohne Ersatz). Der Grund bleibt privat (Tabelle session_skips);
+// im Plan steht nur „abgesagt“. Claude berücksichtigt den Grund bei den nächsten Einheiten.
+const Absage = (() => {
+  const REASONS = [
+    ["zeit", "Keine Zeit"], ["krank", "Krank / erkältet"], ["schmerzen", "Schmerzen"],
+    ["muede", "Zu müde"], ["wetter", "Wetter"], ["motivation", "Keine Lust"], ["sonstiges", "Anderer Grund"]
+  ];
+  let el = null;
+
+  function build() {
+    el = document.createElement("div");
+    el.className = "sheet-backdrop"; el.id = "skip-sheet"; el.hidden = true;
+    el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true"); el.setAttribute("aria-labelledby", "skip-title");
+    el.innerHTML = '<div class="sheet"><h2 id="skip-title">Training absagen</h2><p id="skip-sub"></p>' +
+      '<div class="field q"><label id="skip-why">Warum fällt es aus?</label><div class="chips" id="skip-reasons" role="radiogroup" aria-labelledby="skip-why"></div></div>' +
+      '<div class="field q"><label for="skip-note">Magst du mehr dazu sagen? <span class="opt">(optional)</span></label>' +
+      '<input id="skip-note" type="text" maxlength="500" placeholder="z. B. Halskratzen seit gestern"></div>' +
+      '<p class="hint" id="skip-hint" style="font-size:.85rem;margin:0 0 12px">Claude berücksichtigt den Grund bei deinen nächsten Einheiten. Der Grund bleibt privat – im gemeinsamen Plan steht nur „abgesagt“.</p>' +
+      '<div class="msg" id="skip-msg" role="status"></div>' +
+      '<button type="button" id="skip-save" disabled>Absagen</button>' +
+      '<button type="button" class="ghost later" id="skip-cancel">Abbrechen</button></div>';
+    document.body.append(el);
+    el.addEventListener("click", (e) => { if (e.target === el) close(); });
+    el.querySelector("#skip-cancel").addEventListener("click", close);
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !el.hidden) close(); });
+  }
+
+  function close() { if (el) el.hidden = true; }
+
+  function open(plan, s) {
+    if (!el) build();
+    const d = Plan.dayDate(plan.week_start, s.day);
+    el.querySelector("#skip-sub").textContent = s.title + " · " + d.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "numeric" });
+    const box = el.querySelector("#skip-reasons"); box.innerHTML = "";
+    const save = el.querySelector("#skip-save"); save.disabled = true;
+    const msg = el.querySelector("#skip-msg"); msg.textContent = ""; msg.className = "msg";
+    const note = el.querySelector("#skip-note"); note.value = "";
+    let reason = null;
+    REASONS.forEach(([k, label]) => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.textContent = label;
+      b.setAttribute("role", "radio"); b.setAttribute("aria-checked", "false"); b.setAttribute("aria-pressed", "false");
+      b.addEventListener("click", () => {
+        box.querySelectorAll(".chip").forEach((x) => { x.setAttribute("aria-pressed", "false"); x.setAttribute("aria-checked", "false"); });
+        b.setAttribute("aria-pressed", "true"); b.setAttribute("aria-checked", "true");
+        reason = k; save.disabled = false;
+        note.placeholder = k === "krank" ? "z. B. Halskratzen, Fieber?" : k === "schmerzen" ? "Wo genau? z. B. Knie beim Treppensteigen" : k === "zeit" ? "z. B. Termin verschoben" : "z. B. lange Woche";
+      });
+      box.append(b);
+    });
+    save.onclick = async () => {
+      if (!reason) return;
+      save.disabled = true;
+      const { error } = await db.from("session_skips").insert({ user_id: me.id, week_start: plan.week_start, session_id: s.id, reason, note: note.value.trim() || null });
+      if (error) { msg.textContent = translate(error); msg.className = "msg error"; save.disabled = false; return; }
+      close();
+      await Plan.render();
+      Plan.renderToday();
+    };
+    el.hidden = false;
+  }
+
+  return { open };
+})();
