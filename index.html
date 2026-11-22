@@ -420,6 +420,9 @@
     .sub-vals { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 4px 0 0; font-size: .93rem; }
     .sub-vals dt { color: var(--muted); }
     .sub-vals dd { margin: 0; font-weight: 600; }
+    .hr-pill { display: inline-block; margin-top: 6px; padding: 2px 10px; border-radius: 999px; font-size: .8rem; font-weight: 650;
+      background: color-mix(in srgb, #e5484d 12%, transparent); color: #c8373c; }
+    @media (prefers-color-scheme: dark) { .hr-pill { color: #ff8589; background: color-mix(in srgb, #ff6369 18%, transparent); } }
     .skip-line { font-size: .88rem; color: var(--muted); margin-top: 4px; }
     .missed-btns { flex-wrap: wrap; }
     #skip-sheet .sheet { max-height: calc(100vh - 32px); overflow-y: auto; -webkit-overflow-scrolling: touch; }

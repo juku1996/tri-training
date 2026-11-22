@@ -228,6 +228,7 @@ const Plan = (() => {
         const exN = exPlan ? exPlan.querySelectorAll("li").length : 0;
         meta.textContent = [sp.label, s.duration_min ? s.duration_min + " Min." : null, exN ? exN + " Übungen" : null, s.intensity].filter(Boolean).join(" · ");
         sum.append(title, meta);
+        if (s.hr_max && !sub) sum.append(hrPill(s.hr_max));
         if (s.moved_from) sum.append(movedLine(s.moved_from));
         if (s.weather_note) {
           const wn = document.createElement("div");
@@ -394,6 +395,14 @@ const Plan = (() => {
       const n = document.createElement("p"); n.className = "session-tip"; n.textContent = "Noch keine Werte eingetragen – wie lange ging es, wie hat es sich angefühlt?"; box.append(n);
     }
     return box;
+  }
+
+  // Pulsobergrenze einer Einheit: „♥ max. 155“
+  function hrPill(v) {
+    const d = document.createElement("div"); d.className = "hr-pill";
+    d.textContent = "♥ Puls max. " + v;
+    d.setAttribute("aria-label", "Puls höchstens " + v + " Schläge pro Minute");
+    return d;
   }
 
   // „📅 Verschoben von Mittwoch, 18.11.“
@@ -565,6 +574,7 @@ const Plan = (() => {
         const m = document.createElement("div"); m.className = "m";
         m.textContent = [sp.label, nx.s.duration_min ? nx.s.duration_min + " Min." : null, nx.s.intensity].filter(Boolean).join(" · ");
         txt.append(t, m);
+        if (nx.s.hr_max) txt.append(hrPill(nx.s.hr_max));
         if (nx.s.moved_from) txt.append(movedLine(nx.s.moved_from));
         if (nx.s.weather_note) {
           const wn = document.createElement("div"); wn.className = "session-weather"; wn.textContent = "☔ " + nx.s.weather_note;
