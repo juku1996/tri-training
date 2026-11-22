@@ -223,7 +223,8 @@ const Plan = (() => {
         if (s.together) title.append(togetherPill(partner));
         const meta = document.createElement("div");
         meta.className = "session-meta";
-        const exPlan = hasGym(s) ? exTable(s) : null;
+        // Ersetzte Einheit: beim Aufklappen nur das Ersatztraining zeigen, nicht den ursprünglichen Plan
+        const exPlan = !sub && hasGym(s) ? exTable(s) : null;
         const exN = exPlan ? exPlan.querySelectorAll("li").length : 0;
         meta.textContent = [sp.label, s.duration_min ? s.duration_min + " Min." : null, exN ? exN + " Übungen" : null, s.intensity].filter(Boolean).join(" · ");
         sum.append(title, meta);
@@ -239,16 +240,16 @@ const Plan = (() => {
           rl.className = "session-res"; rl.textContent = Ergebnis.summary(s, res);
           sum.append(rl);
         }
-        if ((Array.isArray(s.details) && s.details.length) || s.tip || done.has(s.id) || exPlan) sum.className = "has-details";
+        if (!sub && ((Array.isArray(s.details) && s.details.length) || s.tip || done.has(s.id) || exPlan)) sum.className = "has-details";
         main.append(sum);
         if (exPlan) main.append(exPlan);
-        if (Array.isArray(s.details) && s.details.length) {
+        if (!sub && Array.isArray(s.details) && s.details.length) {
           if (exPlan) { const hh = document.createElement("div"); hh.className = "ex-plan-h"; hh.textContent = "Hinweise"; main.append(hh); }
           const ul = document.createElement("ul");
           s.details.forEach((t) => { const li = document.createElement("li"); li.textContent = t; ul.append(li); });
           main.append(ul);
         }
-        if (s.tip) {
+        if (!sub && s.tip) {
           const tip = document.createElement("p");
           tip.className = "session-tip"; tip.textContent = s.tip;
           main.append(tip);
@@ -271,6 +272,7 @@ const Plan = (() => {
           lm.textContent = [tsp.label !== sub.title ? tsp.label : null, sub.duration_min ? sub.duration_min + " Min." : null, sub.needs_details ? "Werte fehlen noch" : "✓ erledigt"].filter(Boolean).join(" · ");
           lt.append(lb, lm); line.append(ic, lt);
           sum.append(line);
+          main.append(subInfo(sub));
           const eb = document.createElement("button"); eb.type = "button"; eb.className = "ghost res-edit";
           eb.textContent = sub.needs_details ? "Werte eintragen" : "Ersatztraining bearbeiten";
           eb.addEventListener("click", () => Training.open(sub));
@@ -358,6 +360,39 @@ const Plan = (() => {
       const p = hist.map[Uebungen.keyOf(e.name)];
       el.textContent = p && p.kg != null ? "zuletzt " + String(p.kg).replace(".", ",") + " kg" : (p ? "" : "neu");
     }));
+    return box;
+  }
+
+  // Werte eines Ersatztrainings (aufgeklappt im Plan)
+  function subInfo(w) {
+    const box = document.createElement("div"); box.className = "sub-info";
+    const fmt = (v, d) => String(Math.round(Number(v) * (d || 1)) / (d || 1)).replace(".", ",");
+    const rows = [
+      ["Datum", w.day ? parse(w.day).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "numeric" }) : null],
+      ["Dauer", w.duration_min ? w.duration_min + " Min." : null],
+      ["Distanz", w.distance_km ? fmt(w.distance_km, 100) + " km" : null],
+      ["Höhenmeter", w.elevation_m ? fmt(w.elevation_m) + " m" : null],
+      ["Ø Puls", w.avg_hr ? fmt(w.avg_hr) + " bpm" : null],
+      ["Kalorien", w.calories ? fmt(w.calories) + " kcal" : null],
+      ["Gefühl", w.feeling ? w.feeling + " von 5" : null]
+    ].filter((r) => r[1]);
+    const h = document.createElement("div"); h.className = "ex-plan-h"; h.textContent = "Dein Ersatztraining";
+    box.append(h);
+    if (rows.length) {
+      const dl = document.createElement("dl"); dl.className = "sub-vals";
+      rows.forEach(([k, v]) => { const dt = document.createElement("dt"); dt.textContent = k; const dd = document.createElement("dd"); dd.textContent = v; dl.append(dt, dd); });
+      box.append(dl);
+    }
+    if (Array.isArray(w.exercises) && w.exercises.length) {
+      const hh = document.createElement("div"); hh.className = "ex-plan-h"; hh.textContent = "Übungen"; box.append(hh);
+      const ul = document.createElement("ul"); ul.className = "ex-list";
+      w.exercises.forEach((e) => { const li = document.createElement("li"); li.textContent = Uebungen.line(e); ul.append(li); });
+      box.append(ul);
+    }
+    if (w.note) { const n = document.createElement("p"); n.className = "session-tip"; n.textContent = w.note; box.append(n); }
+    if (w.needs_details || rows.length <= 1) {
+      const n = document.createElement("p"); n.className = "session-tip"; n.textContent = "Noch keine Werte eingetragen – wie lange ging es, wie hat es sich angefühlt?"; box.append(n);
+    }
     return box;
   }
 
